@@ -1,0 +1,9 @@
+# Основное: датасет, RAG, метрики, Saluki через llama-server. Работает без GPU.
+numpy
+pandas>=2
+pyarrow>=15
+requests
+scikit-learn
+sacrebleu
+langid
+huggingface_hub

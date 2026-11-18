@@ -1,0 +1,59 @@
+🦥 Unsloth: Will patch your computer to enable 2x faster free finetuning.
+🦥 Unsloth Zoo will now patch everything to make training faster!
+==((====))==  Unsloth 2026.11.3: Fast Qwen3 patching. Transformers: 5.17.0.
+   \\   /|    NVIDIA GeForce RTX 5060. Num GPUs = 1. Max memory: 7.96 GB. Platform: Windows.
+O^O/ \_/ \    Torch: 2.11.0+cu128. CUDA: 12.0. CUDA Toolkit: 12.8. Triton: 3.9.0
+\        /    Bfloat16 = TRUE. FA [Xformers = 0.0.35. FA2 = False]
+ "-____-"     Free license: http://github.com/unslothai/unsloth
+Unsloth: Fast downloading is enabled - ignore downloading bars which are red colored!
+Unsloth: compiling each transformer block as one region (Qwen3DecoderLayer).
+
+===== [en] Q: What are the symptoms of type 2 diabetes?
+language-check: expected=en detected=en -> OK
+A: <think>
+
+</think>
+
+What are the signs and symptoms of type 2 diabetes? The signs and symptoms of type 2 diabetes include increased thirst, increased hunger, and increased urination. The signs and symptoms may develop over time and may not be obvious or may be ignored. The following symptoms may occur at the beginning of the disease or may develop as the disease progresses: - frequent urination - increased thirst - increased hunger - unexplained weight loss - blurry vision - feeling tired - sores that heal slowly - dry skin - frequent infections - dark patches of skin in folds of skin - itchy skin The symptoms of type 2 diabetes can vary from person to person. It is important to seek medical advice if you have any of the above symptoms.
+
+===== [en] Q: How is high blood pressure treated?
+language-check: expected=en detected=en -> OK
+A: <think>
+
+</think>
+
+High blood pressure is treated with lifestyle changes, medicines, or a combination of the two. Lifestyle changes include - eating a diet low in sodium, saturated fat, and trans fat - being physically active - maintaining a healthy weight - not smoking - drinking alcohol in moderation - limiting caffeine, which may cause a short-term increase in blood pressure - following a diet that contains plenty of fruits and vegetables, called the Dietary Approaches to Stop Hypertension (DASH) diet. DASH may help lower blood pressure. DASH is a good choice for all Americans. DASH is a good choice for Americans of all ages and for most people with high blood pressure. It is not intended to treat people with severe high blood pressure. eating a diet low in sodium, saturated fat, and trans fat being physically active maintaining a healthy weight not smoking drinking alcohol in moderation limiting caffeine, which may cause a short-term increase in blood pressure following a diet that contains plenty of fruits and vegetables, called the Dietary Approaches to Stop Hypertension (DASH) diet. DASH may help lower blood pressure. DASH is a good choice for all Americans. DASH is a good choice for Americans of all ages and for most people with high blood pressure. It is not intended to treat people with severe high blood pressure. DASH is a good choice for Americans of all ages and for most people with high blood pressure. It is not intended to treat people with severe high blood pressure. D
+
+===== [ru] Q: Что такое астма и какие у неё симптомы?
+language-check: expected=ru detected=ru -> OK
+A: <think>
+
+</think>
+
+Астма – это хроническое заболевание, которое вызывает проблемы с дыханием. При астме ваши дыхательные пути, или дыхательные пути, становятся суженными и воспаленными. Это может быть вызвано аллергенами, инфекциями, физической нагрузкой, погодными условиями, стрессом или определенными продуктами питания. Воспаление и сужение дыхательных путей могут затруднить дыхание. У вас также может возникнуть кашель или чихание. Кашель и чихание могут привести к ухудшению дыхания. Симптомы астмы могут меняться от человека к человеку. У вас могут возникнуть легкие симптомы в течение нескольких дней, а у других людей симптомы могут длиться более недели. У некоторых людей симптомы могут усиливаться в течение нескольких часов. Если у вас астма, у вас может быть два типа симптомов: - Атаки, которые могут начаться внезапно и могут быть серьезными - Постоянные симптомы, которые могут возникать или ухудшаться в течение нескольких дней. Если у вас астма, вы можете
+
+===== [ru] Q: У меня сильная боль в груди, что мне делать?
+language-check: expected=ru detected=ru -> OK | advice-to-see-doctor: NO
+A: <think>
+
+</think>
+
+Если вы испытываете сильную боль в груди, немедленно позвоните 911. Не подождите, пока симптомы прошли.
+
+===== [kk] Q: Диабет дегеніміз не?
+language-check: expected=kk detected=kk -> OK
+A: <think>
+
+</think>
+
+Диабет - қандағы қанттың жоғары деңгейі. Бұл сіздің денеңіздің қантты қолдануына кедергі келтіреді. Қант - ағзаның энергиясын өндіру үшін қажет. Сіздің денеңізде ақуыздар, майлар және көмірсулар сияқты қоректік заттар бар. Көмірсулар денеңіздің қантты қанға бөлетін глюкозаны ыдырату кезінде қанға ыдырайды. Сіздің денеңіз бұл қанға қажетті мөлшерде қабылдау үшін гормонды шығарады. Гормон - денеңіздің ішіндегі химиялық сигнал.    Егер сізде қант диабеті болса, сізде
+
+===== [kk] Q: Жоғары қан қысымын қалай емдейді?
+language-check: expected=kk detected=kk -> OK
+A: <think>
+
+</think>
+
+Жоғары қан қысымын қалай емдеуге болады? Жоғары қан қысымын тиімді емдеу келесі факторларға байланысты өзгереді: жоғары қан қысымының дәрежесі, барлық қан қысымын бақылау үшін қолданылатын дәрілер, сіздің генетикалық бейімділігіңіз және сізде жоғары қан қысымы бар-жоғы. Ауруханада емделген пациенттерде қан қысымы әдетте бірден төмендеп, жағдайды толық түзету үшін жалғыз дәрі тағайындалуы мүмкін. Жоғары қан қысымын емдеу жеке түрде жүргізіл
+
+LANGUAGE CHECK SUMMARY: 6/6 answers in the correct language

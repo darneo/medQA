@@ -1,0 +1,441 @@
+"""Командная строка: python -m medqa <команда>. Подробности: python -m medqa <команда> --help."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from . import __version__
+from .config import (DATASET, LANG_NAMES, LANGS, MEDBOT_ADAPTER, MEDBOT_BASE_MODEL, MEDBOT_RESULTS, MODELS_DIR,
+                     NEW_QUESTIONS, SALUKI_FILE, SALUKI_MODEL, SALUKI_REPO, SALUKI_RESULTS)
+
+
+_ARGPARSE_RU = {
+    "usage: ": "использование: ",
+    "positional arguments": "аргументы",
+    "options": "параметры",
+    "show this help message and exit": "показать эту справку и выйти",
+    "show program's version number and exit": "показать версию и выйти",
+    "the following arguments are required: %s": "не хватает обязательных аргументов: %s",
+    "unrecognized arguments: %s": "неизвестные аргументы: %s",
+    "%(prog)s: error: %(message)s\n": "%(prog)s: ошибка: %(message)s\n",
+    "argument %(argument_name)s: %(message)s": "аргумент %(argument_name)s: %(message)s",
+    "invalid choice: %(value)r (choose from %(choices)s)": "недопустимое значение: %(value)r (варианты: %(choices)s)",
+    "invalid %(type)s value: %(value)r": "неверное значение (%(type)s): %(value)r",
+    "expected one argument": "нужно одно значение",
+}
+
+
+def _russian_argparse() -> None:
+    """Переводит служебные надписи argparse (заголовки справки и ошибки) на русский."""
+    if getattr(argparse, "_medqa_ru", False):
+        return
+    original = argparse._
+    argparse._ = lambda text: _ARGPARSE_RU.get(text, original(text))
+    argparse._medqa_ru = True
+
+
+def _utf8_console() -> None:
+    # Консоль Windows (cp1251) не печатает казахские буквы — без этого print падает.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+
+
+# ---------------------------------------------------------------- data / rag / evaluate
+
+
+def cmd_data(args) -> None:
+    from .data import col, load_dataset, split_train_val
+
+    df = load_dataset(args.data, verbose=True)
+    train, val = split_train_val(df)
+    print(f"Train: {len(train)} строк; validation: {len(val)} строк (× 3 языка)")
+    print("\nДлина ответов, символов:")
+    for lang in LANGS:
+        s = df[col("answer", lang)].str.len()
+        print(f"  {lang} ({LANG_NAMES[lang]}): медиана {int(s.median())}, 90% ≤ {int(s.quantile(0.9))}, макс {int(s.max())}")
+    if "category" in df:
+        print("\nИсточники:")
+        for name, n in df["category"].value_counts().items():
+            print(f"  {name}: {n}")
+
+
+def cmd_rag(args) -> None:
+    from .rag import MedQuadRAG
+
+    hits = MedQuadRAG(args.data).search(args.question, args.lang, args.k, args.exclude_row)
+    for h in hits:
+        print(f"[строка {h['row']}, похожесть {h['score']:.3f}] {h['question']}\n  {h['answer'][:300]}\n")
+
+
+def _metrics_prefix(answers: Path) -> Path:
+    stem = answers.stem
+    name = stem.replace("answers", "metrics", 1) if "answers" in stem else f"metrics_{stem}"
+    return answers.parent / name
+
+
+def cmd_evaluate(args) -> None:
+    from .data import load_dataset
+    from .metrics import evaluate_answers, save_metrics
+    from .saluki import load_answers
+
+    answers = Path(args.answers)
+    metrics, summary = evaluate_answers(load_answers(answers), load_dataset(args.data))
+    out_parquet, out_json = save_metrics(metrics, summary, Path(args.out_prefix) if args.out_prefix
+                                         else _metrics_prefix(answers))
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    print(f"По строкам: {out_parquet}\nСводка: {out_json}")
+
+
+# ---------------------------------------------------------------- saluki
+
+
+def _server_opts(args):
+    from .llama_server import ServerOptions
+
+    return ServerOptions(host=args.host, port=args.port, ctx=args.ctx, fit=args.fit, ngl=args.ngl, model=args.model,
+                         llama_server=args.llama_server, startup_timeout=args.startup_timeout,
+                         extra_args=args.extra_server_arg or [])
+
+
+def _connect(args):
+    """(proc, base_url): подключиться к --server-url или к уже работающему серверу, иначе запустить свой."""
+    from .llama_server import ensure_server, wait_ready
+
+    if getattr(args, "server_url", None):
+        url = args.server_url.rstrip("/")
+        wait_ready(url, None, args.startup_timeout)
+        return None, url
+    opts = _server_opts(args)
+    return ensure_server(opts), opts.base_url
+
+
+def cmd_saluki_download(args) -> None:
+    from huggingface_hub import hf_hub_download
+
+    SALUKI_MODEL.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Скачивание {args.repo}/{args.filename} в {SALUKI_MODEL.parent} (~7.9 ГБ) ...")
+    print("Готово:", hf_hub_download(repo_id=args.repo, filename=args.filename, local_dir=str(SALUKI_MODEL.parent)))
+
+
+def cmd_saluki_serve(args) -> None:
+    import time
+
+    from .llama_server import start_server, stop_server
+
+    proc = start_server(_server_opts(args))
+    print("Сервер работает. Ctrl+C — остановить.")
+    try:
+        while proc.poll() is None:
+            time.sleep(2)
+    except KeyboardInterrupt:
+        print("\nОстановка ...")
+    finally:
+        stop_server(proc)
+
+
+def _gen_config(args):
+    from .saluki import GenConfig
+
+    return GenConfig.make(rag=args.rag, rag_k=args.rag_k, concise=args.concise, max_tokens=args.max_tokens,
+                          thinking=args.thinking)
+
+
+def cmd_saluki_run(args) -> None:
+    import requests
+
+    from .data import load_dataset
+    from .llama_server import stop_server
+    from .rag import MedQuadRAG
+    from .saluki import export, run_batch, select_rows
+
+    config = _gen_config(args)
+    df = load_dataset(args.data, verbose=True)
+    output = Path(args.output) if args.output else \
+        SALUKI_RESULTS / f"answers{'_rag' if config.rag else ''}{'' if config.concise else '_long'}.jsonl"
+    rows = select_rows(len(df), args.limit, args.offset, args.shuffle, args.seed)
+    rag = MedQuadRAG(df) if config.rag else None
+    print(f"Режим: {config}\nОтветы: {output}")
+    proc, base_url = _connect(args)
+    try:
+        with requests.Session() as session:
+            def progress(n, total, rec):
+                status = f"ошибка: {rec['error']}" if rec["error"] else f"{len(rec['answer'])} символов"
+                print(f"[{n}/{total}] строка {rec['row']} {rec['lang']}: {rec['latency_s']} с, {status}")
+
+            summary = run_batch(df, rows, args.langs, output, config, session=session, base_url=base_url, rag=rag,
+                                temperature=args.temperature, top_p=args.top_p, timeout_s=args.request_timeout,
+                                retries=args.retries, progress=progress)
+    finally:
+        stop_server(proc)
+    print(f"Готово: {summary}")
+    if output.exists():
+        exported = export(output, output.with_suffix(".parquet"))
+        print(f"Таблица: {output.with_suffix('.parquet')} ({len(exported)} записей)")
+
+
+def cmd_saluki_ask(args) -> None:
+    import requests
+
+    from .llama_server import stop_server
+    from .rag import MedQuadRAG
+    from .saluki import ask_questions
+
+    config = _gen_config(args)
+    questions = json.loads(Path(args.questions).read_text(encoding="utf-8"))[:args.limit]
+    output = Path(args.output) if args.output else \
+        SALUKI_RESULTS / f"new_questions_answers{'_rag' if config.rag else ''}.jsonl"
+    rag = MedQuadRAG(args.data) if config.rag else None
+    proc, base_url = _connect(args)
+    try:
+        with requests.Session() as session:
+            df = ask_questions(questions, output, config, session=session, base_url=base_url, rag=rag)
+    finally:
+        stop_server(proc)
+    print(f"Готово: {len(df)} ответов, ошибок {int(df['error'].notna().sum())}. Файл: {output}")
+
+
+def cmd_saluki_export(args) -> None:
+    from .saluki import export
+
+    src = Path(args.input)
+    dst = Path(args.output) if args.output else src.with_suffix(".parquet")
+    df = export(src, dst)
+    print(f"{len(df)} записей -> {dst}; с ответом: {int(df['answer'].astype(str).str.len().gt(0).sum())}")
+
+
+# ---------------------------------------------------------------- medbot
+
+
+def cmd_medbot_train(args) -> None:
+    from .medbot import TrainOptions, train
+
+    train(TrainOptions(output=Path(args.output), base_model=args.base_model, shard=args.shard, shards=args.shards,
+                       max_train_rows=args.max_train_rows, epochs=args.epochs, lr=args.lr,
+                       max_seq_length=args.max_seq_length, batch_size=args.batch_size, grad_accum=args.grad_accum,
+                       save_steps=args.save_steps, responses_only=not args.full_text_loss))
+
+
+def _gen_kwargs(args) -> dict:
+    return {"max_new_tokens": args.max_new_tokens, "temperature": args.temperature,
+            "repetition_penalty": args.repetition_penalty}
+
+
+def cmd_medbot_chat(args) -> None:
+    from .medbot import generate, load_model
+
+    model, tokenizer = load_model(args.adapter, args.max_seq_length)
+    print(f"Модель загружена. Язык: {LANG_NAMES[args.lang]}. Пустая строка или «выход» — завершить.")
+    while True:
+        try:
+            question = input("\nВы: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+        if not question or question.lower() in ("exit", "quit", "выход"):
+            break
+        print("\nАссистент:", generate(model, tokenizer, question, args.lang, **_gen_kwargs(args)))
+
+
+def cmd_medbot_test(args) -> None:
+    from .medbot import load_model, smoke_test
+
+    model, tokenizer = load_model(args.adapter, args.max_seq_length)
+    report = smoke_test(model, tokenizer, **_gen_kwargs(args))
+    for r in report["results"]:
+        extra = f" | совет обратиться за помощью: {'да' if r['advises_help'] else 'НЕТ'}" if r["urgent"] else ""
+        mark = "OK" if r["language_ok"] else "НЕ ТОТ ЯЗЫК"
+        print(f"\n===== [{r['lang']}] {r['question']}\nязык: ожидался {r['lang']}, получен {r['detected']} -> {mark}"
+              f"{extra}\n{r['answer']}")
+    print(f"\nИТОГ: {report['language_ok']}/{report['total']} ответов на нужном языке")
+    if args.save:
+        MEDBOT_RESULTS.mkdir(parents=True, exist_ok=True)
+        path = MEDBOT_RESULTS / "smoke_test.json"
+        path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print("Сохранено:", path)
+
+
+def cmd_medbot_eval(args) -> None:
+    from .medbot import evaluate_loss, load_model, validation_examples
+
+    model, tokenizer = load_model(args.adapter, args.max_seq_length)
+    result = evaluate_loss(model, tokenizer, validation_examples(args.val_rows), args.max_seq_length,
+                           include_prompt=args.include_prompt)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    if args.save:
+        MEDBOT_RESULTS.mkdir(parents=True, exist_ok=True)
+        name = "validation_loss_full_dialog.json" if args.include_prompt else "validation_loss_answer_only.json"
+        (MEDBOT_RESULTS / name).write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        print("Сохранено:", MEDBOT_RESULTS / name)
+
+
+def cmd_medbot_merge(args) -> None:
+    from .medbot import merge_adapters
+
+    out = merge_adapters(args.adapters, args.out, args.method)
+    print(f"Слито адаптеров: {len(args.adapters)} ({args.method}) -> {out.resolve()}")
+
+
+# ---------------------------------------------------------------- парсер
+
+
+def _add_server_args(p: argparse.ArgumentParser) -> None:
+    g = p.add_argument_group("llama-server")
+    g.add_argument("--server-url", help="адрес уже запущенного сервера (тогда свой не запускается)")
+    g.add_argument("--model", help=f"путь к GGUF (по умолчанию {SALUKI_MODEL.relative_to(MODELS_DIR.parent)})")
+    g.add_argument("--llama-server", help="путь к llama-server(.exe)")
+    g.add_argument("--host", default="127.0.0.1")
+    g.add_argument("--port", type=int, default=8080)
+    g.add_argument("--ctx", type=int, default=4096, help="размер контекста, токенов")
+    g.add_argument("--fit", action=argparse.BooleanOptionalAction, default=True,
+                   help="сам делить слои между GPU и RAM (по умолчанию включено)")
+    g.add_argument("--ngl", type=int, help="число слоёв на GPU (по умолчанию авто)")
+    g.add_argument("--startup-timeout", type=float, default=900, help="ожидание загрузки модели, секунд")
+    g.add_argument("--extra-server-arg", nargs=argparse.REMAINDER, help="доп. аргументы llama-server (в конце)")
+
+
+def _add_gen_args(p: argparse.ArgumentParser) -> None:
+    g = p.add_argument_group("генерация")
+    g.add_argument("--concise", action=argparse.BooleanOptionalAction, default=True,
+                   help="просить ответ в 3–5 предложений (по умолчанию да; --no-concise — длинные ответы)")
+    g.add_argument("--max-tokens", type=int, default=384, help="лимит токенов ответа")
+    g.add_argument("--rag", action="store_true", help="давать модели похожие пары из датасета как справку")
+    g.add_argument("--rag-k", type=int, default=3, help="сколько пар давать при --rag")
+    g.add_argument("--thinking", action="store_true", help="включить рассуждения модели (медленнее)")
+    g.add_argument("--temperature", type=float, default=0.2)
+    g.add_argument("--top-p", type=float, default=0.9)
+
+
+def _add_medbot_gen_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--adapter", default=str(MEDBOT_ADAPTER), help="папка lora_adapter (или базовая модель)")
+    p.add_argument("--max-seq-length", type=int, default=1024)
+    p.add_argument("--max-new-tokens", type=int, default=512)
+    p.add_argument("--temperature", type=float, default=0.7, help="0 — детерминированный ответ")
+    p.add_argument("--repetition-penalty", type=float, default=1.1, help="штраф за повторы (1.0 — без штрафа)")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    _russian_argparse()
+    parser = argparse.ArgumentParser(prog="python -m medqa",
+                                     description="Медицинский QA на en/ru/kk: Saluki 27B и medbot (Qwen3-4B + LoRA).")
+    parser.add_argument("--version", action="version", version=f"medqa {__version__}")
+    parser.add_argument("--data", default=str(DATASET), help="датасет parquet (по умолчанию data/final/...)")
+    sub = parser.add_subparsers(dest="command", required=True, metavar="команда")
+
+    p = sub.add_parser("data", help="сводка по датасету")
+    p.set_defaults(func=cmd_data)
+
+    p = sub.add_parser("rag", help="найти в датасете похожие вопросы")
+    p.add_argument("question", help="текст вопроса")
+    p.add_argument("--lang", default="ru", choices=LANGS)
+    p.add_argument("--k", type=int, default=3)
+    p.add_argument("--exclude-row", type=int, help="не показывать эту строку")
+    p.set_defaults(func=cmd_rag)
+
+    p = sub.add_parser("evaluate", help="метрики ответов против эталонов датасета")
+    p.add_argument("answers", help="файл ответов .jsonl или .parquet")
+    p.add_argument("--out-prefix", help="куда писать (по умолчанию metrics* рядом с ответами)")
+    p.set_defaults(func=cmd_evaluate)
+
+    # saluki
+    s = sub.add_parser("saluki", help="Saluki 27B через llama.cpp (только ответы, без обучения)")
+    ss = s.add_subparsers(dest="saluki_command", required=True, metavar="действие")
+
+    p = ss.add_parser("download", help="скачать GGUF Saluki (~7.9 ГБ) в models/saluki/")
+    p.add_argument("--repo", default=SALUKI_REPO)
+    p.add_argument("--filename", default=SALUKI_FILE)
+    p.set_defaults(func=cmd_saluki_download)
+
+    p = ss.add_parser("serve", help="только запустить llama-server")
+    _add_server_args(p)
+    p.set_defaults(func=cmd_saluki_serve)
+
+    p = ss.add_parser("run", help="ответить на вопросы датасета (с возобновлением)")
+    p.add_argument("--langs", nargs="+", choices=LANGS, default=list(LANGS))
+    p.add_argument("--limit", type=int, help="сколько строк датасета взять")
+    p.add_argument("--offset", type=int, default=0)
+    p.add_argument("--shuffle", action="store_true", help="случайный порядок строк")
+    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--output", help="JSONL ответов (по умолчанию results/saluki/answers[_rag][_long].jsonl)")
+    p.add_argument("--retries", type=int, default=2)
+    p.add_argument("--request-timeout", type=float, default=900)
+    _add_gen_args(p)
+    _add_server_args(p)
+    p.set_defaults(func=cmd_saluki_run)
+
+    p = ss.add_parser("ask", help="задать новые вопросы из data/new_questions.json")
+    p.add_argument("--questions", default=str(NEW_QUESTIONS))
+    p.add_argument("--limit", type=int, help="сколько первых вопросов взять")
+    p.add_argument("--output", help="JSONL (по умолчанию results/saluki/new_questions_answers[_rag].jsonl)")
+    _add_gen_args(p)
+    _add_server_args(p)
+    p.set_defaults(func=cmd_saluki_ask)
+
+    p = ss.add_parser("export", help="JSONL ответов -> parquet")
+    p.add_argument("input")
+    p.add_argument("--output", help="по умолчанию рядом, с расширением .parquet")
+    p.set_defaults(func=cmd_saluki_export)
+
+    # medbot
+    m = sub.add_parser("medbot", help="medbot: Qwen3-4B + LoRA (нужна GPU NVIDIA)")
+    ms = m.add_subparsers(dest="medbot_command", required=True, metavar="действие")
+
+    p = ms.add_parser("train", help="дообучить Qwen3-4B (QLoRA), с чекпоинтами и продолжением")
+    p.add_argument("--output", default=str(MODELS_DIR / "medbot_train"),
+                   help="папка результата (существующий адаптер не перезаписывается)")
+    p.add_argument("--base-model", default=MEDBOT_BASE_MODEL)
+    p.add_argument("--shard", type=int, default=0, help="номер шарда (для обучения на нескольких машинах)")
+    p.add_argument("--shards", type=int, default=1, help="всего шардов")
+    p.add_argument("--max-train-rows", type=int, default=0, help="ограничить train (0 — все строки)")
+    p.add_argument("--epochs", type=float, default=1.0)
+    p.add_argument("--lr", type=float, default=2e-4)
+    p.add_argument("--max-seq-length", type=int, default=1024)
+    p.add_argument("--batch-size", type=int, default=2)
+    p.add_argument("--grad-accum", type=int, default=4)
+    p.add_argument("--save-steps", type=int, default=500)
+    p.add_argument("--full-text-loss", action="store_true",
+                   help="считать loss по всему диалогу, как в первом обучении (по умолчанию только по ответу)")
+    p.set_defaults(func=cmd_medbot_train)
+
+    p = ms.add_parser("chat", help="чат с моделью в консоли")
+    p.add_argument("--lang", default="ru", choices=LANGS)
+    _add_medbot_gen_args(p)
+    p.set_defaults(func=cmd_medbot_chat)
+
+    p = ms.add_parser("test", help="6 контрольных вопросов: язык ответа и безопасность")
+    p.add_argument("--save", action="store_true", help=f"сохранить в {MEDBOT_RESULTS.name}/smoke_test.json")
+    _add_medbot_gen_args(p)
+    p.set_defaults(func=cmd_medbot_test)
+
+    p = ms.add_parser("eval", help="loss на validation по языкам")
+    p.add_argument("--adapter", default=str(MEDBOT_ADAPTER))
+    p.add_argument("--max-seq-length", type=int, default=1024, help="как при обучении, иначе loss несравним")
+    p.add_argument("--val-rows", type=int, help="взять только N строк validation (быстрее)")
+    p.add_argument("--include-prompt", action="store_true",
+                   help="считать loss по всему диалогу, как в старом отчёте (по умолчанию только по ответу)")
+    p.add_argument("--save", action="store_true", help="сохранить результат в results/medbot/")
+    p.set_defaults(func=cmd_medbot_eval)
+
+    p = ms.add_parser("merge", help="слить адаптеры шардов в один")
+    p.add_argument("adapters", nargs="+", help="папки lora_adapter шардов")
+    p.add_argument("--out", required=True, help="папка для слитого адаптера")
+    p.add_argument("--method", choices=["exact", "mean"], default="exact",
+                   help="exact — точное среднее поправок (по умолчанию); mean — старый приблизительный способ")
+    p.set_defaults(func=cmd_medbot_merge)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    _utf8_console()
+    args = build_parser().parse_args(argv)
+    try:
+        args.func(args)
+    except KeyboardInterrupt:
+        print("\nПрервано. Повторный запуск продолжит с того же места.")
+        return 130
+    except (FileNotFoundError, FileExistsError, ValueError, RuntimeError, TimeoutError) as exc:
+        print(f"Ошибка: {exc}", file=sys.stderr)
+        return 1
+    return 0

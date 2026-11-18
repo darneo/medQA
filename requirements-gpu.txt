@@ -1,0 +1,11 @@
+# medbot (обучение и запуск Qwen3-4B + LoRA). Нужна видеокарта NVIDIA.
+# Сначала поставьте PyTorch с CUDA (https://pytorch.org/get-started/locally/) или запустите scripts/setup_gpu.ps1.
+-r requirements.txt
+unsloth
+transformers
+trl
+peft
+datasets
+accelerate
+sentencepiece
+safetensors
