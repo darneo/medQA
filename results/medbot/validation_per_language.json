@@ -1,0 +1,15 @@
+{
+  "en": {
+    "eval_loss": 0.856,
+    "samples": 1437
+  },
+  "ru": {
+    "eval_loss": 0.6522,
+    "samples": 1437
+  },
+  "kk": {
+    "eval_loss": 0.5126,
+    "samples": 1437
+  },
+  "overall": 0.6736
+}

@@ -1,0 +1,18 @@
+{
+  "answers": 10,
+  "errors": 0,
+  "empty_answers": 0,
+  "truncated": 0,
+  "language_match_pct": 100.0,
+  "rouge1_f1_mean": 0.134,
+  "rouge2_f1_mean": 0.025,
+  "rougeL_f1_mean": 0.081,
+  "rougeL_f1_median": 0.08,
+  "bleu_mean": 1.0,
+  "chrf_mean": 18.4,
+  "jaccard_mean": 0.088,
+  "reference_coverage_mean": 0.121,
+  "length_ratio_median": 0.23,
+  "avg_latency_s": 8.9,
+  "avg_completion_tokens": 101.0
+}
