@@ -6,7 +6,7 @@ param([switch]$WithModel)
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
-$items = @("medqa", "scripts", "tests", "README.md", "requirements.txt", "requirements-gpu.txt",
+$items = @("medqa", "scripts", "README.md", "requirements.txt", "requirements-gpu.txt",
            "data\final\qa_en_ru_kk.parquet", "data\new_questions.json")
 if (Test-Path "models\medbot_qwen3_4b\lora_adapter") { $items += "models\medbot_qwen3_4b"; Write-Host "Добавлен адаптер" }
 $ckptRoot = "models\medbot_train\checkpoints"

@@ -1,9 +1,4 @@
-# Основное: датасет, RAG, метрики, Saluki через llama-server. Работает без GPU.
+# Основное: датасет и команда data. Для обучения и запуска medbot — requirements-gpu.txt.
 numpy
 pandas>=2
 pyarrow>=15
-requests
-scikit-learn
-sacrebleu
-langid
-huggingface_hub
