@@ -30,6 +30,7 @@ data/
 models/
   medbot_qwen3_4b/lora_adapter/   конфиг и токенизатор адаптера
 results/medbot/           validation loss, контрольный тест
+notebooks/compare_base_vs_medbot.ipynb   сравнение medbot с обычной Qwen3-4B на одних вопросах
 docs/REPORT_medbot.txt    отчёт об обучении (7 ноября 2026)
 scripts/                  установка на GPU-машине, обучение по шардам, упаковка
 ```
@@ -79,6 +80,13 @@ python -m medqa medbot train
 ```bash
 python -m medqa medbot merge models/medbot_train_shard0/lora_adapter models/medbot_train_shard1/lora_adapter models/medbot_train_shard2/lora_adapter --out models/medbot_merged/lora_adapter
 ```
+
+### Что дало обучение
+
+[notebooks/compare_base_vs_medbot.ipynb](notebooks/compare_base_vs_medbot.ipynb) задаёт одни и те же вопросы
+обычной Qwen3-4B и medbot (validation, новые и срочные вопросы), сравнивает язык ответа, ROUGE-L, chrF,
+обрывы и повторы и сохраняет слепую таблицу `results/medbot/doctor_sheet.csv` для оценки врачом.
+Нужна GPU и файл весов адаптера.
 
 ### Перенос на другой компьютер
 
