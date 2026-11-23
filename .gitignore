@@ -21,3 +21,6 @@ model_cache.zip
 # адаптер medbot (132 МБ) больше лимита GitHub в 100 МБ — хранится отдельно (или через Git LFS)
 models/medbot_qwen3_4b/lora_adapter/adapter_model.safetensors
 unsloth_compiled_cache/
+
+# пробные прогоны
+results/**/*_TRIAL*
