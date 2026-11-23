@@ -1,4 +1,10 @@
-# Основное: датасет и команда data. Для обучения и запуска medbot — requirements-gpu.txt.
+# Основное: датасет, Saluki через llama-server, RAG, метрики и ноутбуки сравнения.
+# Для обучения и запуска medbot — requirements-gpu.txt.
 numpy
 pandas>=2
 pyarrow>=15
+requests
+huggingface_hub
+sentence-transformers
+sacrebleu
+matplotlib

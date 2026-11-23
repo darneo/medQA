@@ -8,7 +8,8 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .config import DATASET, LANG_NAMES, LANGS, MEDBOT_ADAPTER, MEDBOT_BASE_MODEL, MEDBOT_RESULTS, MODELS_DIR
+from .config import (DATASET, LANG_NAMES, LANGS, MEDBOT_ADAPTER, MEDBOT_BASE_MODEL, MEDBOT_RESULTS, MODELS_DIR,
+                     RAG_EMBED_MODEL)
 
 
 _ARGPARSE_RU = {
@@ -133,6 +134,73 @@ def cmd_medbot_merge(args) -> None:
     print(f"Слито адаптеров: {len(args.adapters)} ({args.method}) -> {out.resolve()}")
 
 
+# ---------------------------------------------------------------- saluki / rag
+
+
+def cmd_saluki_download(args) -> None:
+    from .saluki import download
+
+    print("Скачивание GGUF Saluki (~7.9 ГБ) в models/saluki/ ...", flush=True)
+    print("Готово:", download())
+
+
+def _server_config(args):
+    from .saluki import ServerConfig
+
+    return ServerConfig(port=args.port, ctx=args.ctx, parallel=args.parallel, gpu_layers=args.gpu_layers)
+
+
+def cmd_saluki_serve(args) -> None:
+    import time
+
+    from .saluki import SalukiServer
+
+    with SalukiServer(_server_config(args)) as server:
+        print(f"Сервер работает: {server.url} (OpenAI API: {server.url}/v1). Ctrl+C — остановить.")
+        try:
+            while True:
+                time.sleep(2)
+        except KeyboardInterrupt:
+            print("\nОстановка ...")
+
+
+def cmd_saluki_chat(args) -> None:
+    from .rag import RAGIndex, format_context
+    from .saluki import SalukiServer, ask
+
+    rag = RAGIndex() if args.rag else None
+    with SalukiServer(_server_config(args)) as server:
+        print(f"Saluki{' + RAG' if rag else ''}, язык: {LANG_NAMES[args.lang]}. Пустая строка или «выход» — завершить.")
+        while True:
+            try:
+                question = input("\nВы: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                break
+            if not question or question.lower() in ("exit", "quit", "выход"):
+                break
+            context = None
+            if rag:
+                hits = rag.search(question, args.lang, args.k)
+                context = format_context(hits)
+                for h in hits:
+                    print(f"  [RAG {h['score']:.2f}] {h['question']}")
+            print("\nSaluki:", ask(question, args.lang, url=server.url, context=context,
+                                   max_tokens=args.max_tokens)["answer"])
+
+
+def cmd_rag_build(args) -> None:
+    from .rag import RAGIndex
+
+    RAGIndex.build(model_name=args.model, device=args.device)
+
+
+def cmd_rag_search(args) -> None:
+    from .rag import RAGIndex
+
+    for h in RAGIndex().search(args.question, args.lang, args.k):
+        print(f"[похожесть {h['score']:.3f}, строка train {h['train_row']}] {h['question']}\n  {h['answer'][:300]}\n")
+
+
 # ---------------------------------------------------------------- парсер
 
 
@@ -147,7 +215,8 @@ def _add_medbot_gen_args(p: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     _russian_argparse()
     parser = argparse.ArgumentParser(prog="python -m medqa",
-                                     description="medbot: медицинский QA на en/ru/kk — Qwen3-4B + QLoRA.")
+                                     description="Медицинский QA на en/ru/kk: medbot (Qwen3-4B + QLoRA) и "
+                                                 "Saluki 27B (+ RAG).")
     parser.add_argument("--version", action="version", version=f"medqa {__version__}")
     parser.add_argument("--data", default=str(DATASET), help="датасет parquet (по умолчанию data/final/...)")
     sub = parser.add_subparsers(dest="command", required=True, metavar="команда")
@@ -200,6 +269,38 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--method", choices=["exact", "mean"], default="exact",
                    help="exact — точное среднее поправок (по умолчанию); mean — старый приблизительный способ")
     p.set_defaults(func=cmd_medbot_merge)
+
+    # saluki
+    s = sub.add_parser("saluki", help="Saluki 27B через llama.cpp (готовая модель, без обучения)")
+    ss = s.add_subparsers(dest="saluki_command", required=True, metavar="действие")
+    p = ss.add_parser("download", help="скачать GGUF Saluki (~7.9 ГБ) в models/saluki/")
+    p.set_defaults(func=cmd_saluki_download)
+    for name, func, help_text in (("serve", cmd_saluki_serve, "запустить llama-server с Saluki"),
+                                  ("chat", cmd_saluki_chat, "чат с Saluki в консоли (можно с --rag)")):
+        p = ss.add_parser(name, help=help_text)
+        p.add_argument("--port", type=int, default=8080)
+        p.add_argument("--ctx", type=int, default=8192, help="контекст на все слоты, токенов")
+        p.add_argument("--parallel", type=int, default=2, help="одновременных запросов")
+        p.add_argument("--gpu-layers", type=int, help="слоёв на видеокарте (по умолчанию подбирается сам)")
+        p.set_defaults(func=func)
+        if name == "chat":
+            p.add_argument("--lang", default="ru", choices=LANGS)
+            p.add_argument("--rag", action="store_true", help="подсказывать похожие ответы из датасета")
+            p.add_argument("--k", type=int, default=3, help="сколько пар давать при --rag")
+            p.add_argument("--max-tokens", type=int, default=512)
+
+    # rag
+    r = sub.add_parser("rag", help="RAG: индекс эмбеддингов по датасету и поиск похожих вопросов")
+    rs = r.add_subparsers(dest="rag_command", required=True, metavar="действие")
+    p = rs.add_parser("build", help="собрать индекс по train-части в data/rag_index/")
+    p.add_argument("--model", default=RAG_EMBED_MODEL, help="модель эмбеддингов")
+    p.add_argument("--device", help="cuda или cpu (по умолчанию cuda, если есть)")
+    p.set_defaults(func=cmd_rag_build)
+    p = rs.add_parser("search", help="найти похожие вопросы")
+    p.add_argument("question")
+    p.add_argument("--lang", default="ru", choices=LANGS)
+    p.add_argument("--k", type=int, default=3)
+    p.set_defaults(func=cmd_rag_search)
     return parser
 
 

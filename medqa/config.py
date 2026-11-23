@@ -20,6 +20,17 @@ MEDBOT_DIR = MODELS_DIR / "medbot_qwen3_4b"
 MEDBOT_ADAPTER = MEDBOT_DIR / "lora_adapter"
 MEDBOT_RESULTS = RESULTS_DIR / "medbot"
 
+# Saluki 27B: готовая модель (GGUF, 2 бита), запускается через llama.cpp (llama-server)
+SALUKI_REPO = "ConwayResearch/Underdog-Saluki-27B-1.0"
+SALUKI_FILE = "Underdog-Saluki-27B-1.0-IQ2-mix.gguf"
+SALUKI_MODEL = MODELS_DIR / "saluki" / SALUKI_FILE
+LLAMA_CPP_DIR = ROOT / "tools" / "llama_cpp"
+SALUKI_RESULTS = RESULTS_DIR / "saluki"
+
+# RAG: индекс эмбеддингов по train-части датасета
+RAG_INDEX_DIR = DATA_DIR / "rag_index"
+RAG_EMBED_MODEL = "BAAI/bge-m3"
+
 LANGS: tuple[str, ...] = ("en", "ru", "kk")
 LANG_NAMES = {"en": "английский", "ru": "русский", "kk": "казахский"}
 SEED = 42

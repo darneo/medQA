@@ -1,210 +1,75 @@
 ---
 base_model: unsloth/Qwen3-4B-unsloth-bnb-4bit
 library_name: peft
+license: apache-2.0
+language:
+- en
+- ru
+- kk
 pipeline_tag: text-generation
 tags:
 - base_model:adapter:unsloth/Qwen3-4B-unsloth-bnb-4bit
 - lora
+- qlora
 - sft
-- transformers
-- trl
 - unsloth
+- medical
+- kazakh
 ---
 
-# Model Card for Model ID
+# medbot — LoRA adapter for Qwen3-4B, medical questions (en / ru / kk)
 
-<!-- Provide a quick summary of what the model is/does. -->
+A LoRA adapter (33M parameters, 0.8% of the model, ~130 MB) fine-tuned with **QLoRA** on
+[MedQuAD](https://github.com/abachaa/MedQuAD) (NIH medical Q&A; Russian and Kazakh are machine translations).
+The base model is downloaded automatically. The ready merged model is in the root of
+`dARYNel/qwen3-4b-medQA-kklang`.
 
+> **Warning.** This is an experimental student model. Its medical accuracy has not been reviewed by a doctor.
+> **Do not use it for diagnosis, treatment or emergencies.** In a life-threatening situation call your local
+> emergency number (103 / 112 in Kazakhstan and Russia).
 
+## Training
 
-## Model Details
+QLoRA (Unsloth): r=16, alpha=16, dropout 0, layers q/k/v/o + gate/up/down; 12,931 × 3 = 38,793 dialogues;
+1 epoch (4,850 steps), lr 2e-4 cosine, batch 2 × 4, max length 1024, AdamW 8-bit; RTX 5060 8 GB.
+Loss: train ~0.58, validation 0.627.
 
-### Model Description
+### How it was trained
 
-<!-- Provide a longer summary of what this model is. -->
+1. **Data.** Each MedQuAD row is one question and answer in three languages; rows missing a translation were dropped
+   (14,368 remain).
+2. **Split.** 10% of the rows were held out for validation **before** expanding to languages, so translations of the
+   same question never appear in both training and validation.
+3. **Dialogues.** Each row becomes three dialogues (en, ru, kk): system prompt "you are a careful medical assistant…
+   advise seeing a doctor" → question → reference answer. Qwen3 chat template, without thinking.
+4. **QLoRA.** The base model is frozen in 4 bits; only the LoRA matrices are trained — the model learns to predict
+   the reference answer token by token (SFT).
 
+## Limitations
 
+For urgent questions in Kazakh the model does not advise calling an ambulance; it may invent facts.
 
-- **Developed by:** [More Information Needed]
-- **Funded by [optional]:** [More Information Needed]
-- **Shared by [optional]:** [More Information Needed]
-- **Model type:** [More Information Needed]
-- **Language(s) (NLP):** [More Information Needed]
-- **License:** [More Information Needed]
-- **Finetuned from model [optional]:** [More Information Needed]
+## Usage
 
-### Model Sources [optional]
+```python
+from unsloth import FastModel
 
-<!-- Provide the basic links for the model. -->
+model, tok = FastModel.from_pretrained("dARYNel/qwen3-4b-medQA-kklang", subfolder="lora_adapter",
+                                       max_seq_length=1024, load_in_4bit=True)
+FastModel.for_inference(model)
+messages = [{"role": "system", "content": "You are a careful medical assistant. Answer in English with general "
+                                          "information. Encourage consulting a qualified clinician for personal "
+                                          "diagnosis or treatment."},
+            {"role": "user", "content": "What is asthma?"}]
+text = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, enable_thinking=False)
+ids = tok(text, return_tensors="pt").to("cuda")
+out = model.generate(**ids, max_new_tokens=384, repetition_penalty=1.1)
+print(tok.decode(out[0][ids["input_ids"].shape[1]:], skip_special_tokens=True))
+```
 
-- **Repository:** [More Information Needed]
-- **Paper [optional]:** [More Information Needed]
-- **Demo [optional]:** [More Information Needed]
+Without Unsloth: `peft.AutoPeftModelForCausalLM.from_pretrained("dARYNel/qwen3-4b-medQA-kklang", subfolder="lora_adapter")`.
+System prompts for ru and kk are listed in the main model card.
 
-## Uses
+## License
 
-<!-- Address questions around how the model is intended to be used, including the foreseeable users of the model and those affected by the model. -->
-
-### Direct Use
-
-<!-- This section is for the model use without fine-tuning or plugging into a larger ecosystem/app. -->
-
-[More Information Needed]
-
-### Downstream Use [optional]
-
-<!-- This section is for the model use when fine-tuned for a task, or when plugged into a larger ecosystem/app -->
-
-[More Information Needed]
-
-### Out-of-Scope Use
-
-<!-- This section addresses misuse, malicious use, and uses that the model will not work well for. -->
-
-[More Information Needed]
-
-## Bias, Risks, and Limitations
-
-<!-- This section is meant to convey both technical and sociotechnical limitations. -->
-
-[More Information Needed]
-
-### Recommendations
-
-<!-- This section is meant to convey recommendations with respect to the bias, risk, and technical limitations. -->
-
-Users (both direct and downstream) should be made aware of the risks, biases and limitations of the model. More information needed for further recommendations.
-
-## How to Get Started with the Model
-
-Use the code below to get started with the model.
-
-[More Information Needed]
-
-## Training Details
-
-### Training Data
-
-<!-- This should link to a Dataset Card, perhaps with a short stub of information on what the training data is all about as well as documentation related to data pre-processing or additional filtering. -->
-
-[More Information Needed]
-
-### Training Procedure
-
-<!-- This relates heavily to the Technical Specifications. Content here should link to that section when it is relevant to the training procedure. -->
-
-#### Preprocessing [optional]
-
-[More Information Needed]
-
-
-#### Training Hyperparameters
-
-- **Training regime:** [More Information Needed] <!--fp32, fp16 mixed precision, bf16 mixed precision, bf16 non-mixed precision, fp16 non-mixed precision, fp8 mixed precision -->
-
-#### Speeds, Sizes, Times [optional]
-
-<!-- This section provides information about throughput, start/end time, checkpoint size if relevant, etc. -->
-
-[More Information Needed]
-
-## Evaluation
-
-<!-- This section describes the evaluation protocols and provides the results. -->
-
-### Testing Data, Factors & Metrics
-
-#### Testing Data
-
-<!-- This should link to a Dataset Card if possible. -->
-
-[More Information Needed]
-
-#### Factors
-
-<!-- These are the things the evaluation is disaggregating by, e.g., subpopulations or domains. -->
-
-[More Information Needed]
-
-#### Metrics
-
-<!-- These are the evaluation metrics being used, ideally with a description of why. -->
-
-[More Information Needed]
-
-### Results
-
-[More Information Needed]
-
-#### Summary
-
-
-
-## Model Examination [optional]
-
-<!-- Relevant interpretability work for the model goes here -->
-
-[More Information Needed]
-
-## Environmental Impact
-
-<!-- Total emissions (in grams of CO2eq) and additional considerations, such as electricity usage, go here. Edit the suggested text below accordingly -->
-
-Carbon emissions can be estimated using the [Machine Learning Impact calculator](https://mlco2.github.io/impact#compute) presented in [Lacoste et al. (2019)](https://arxiv.org/abs/1910.09700).
-
-- **Hardware Type:** [More Information Needed]
-- **Hours used:** [More Information Needed]
-- **Cloud Provider:** [More Information Needed]
-- **Compute Region:** [More Information Needed]
-- **Carbon Emitted:** [More Information Needed]
-
-## Technical Specifications [optional]
-
-### Model Architecture and Objective
-
-[More Information Needed]
-
-### Compute Infrastructure
-
-[More Information Needed]
-
-#### Hardware
-
-[More Information Needed]
-
-#### Software
-
-[More Information Needed]
-
-## Citation [optional]
-
-<!-- If there is a paper or blog post introducing the model, the APA and Bibtex information for that should go in this section. -->
-
-**BibTeX:**
-
-[More Information Needed]
-
-**APA:**
-
-[More Information Needed]
-
-## Glossary [optional]
-
-<!-- If relevant, include terms and calculations in this section that can help readers understand the model or model card. -->
-
-[More Information Needed]
-
-## More Information [optional]
-
-[More Information Needed]
-
-## Model Card Authors [optional]
-
-[More Information Needed]
-
-## Model Card Contact
-
-[More Information Needed]
-### Framework versions
-
-- PEFT 0.21.2
+Apache 2.0, same as Qwen3. MedQuAD data: CC BY 4.0 (Ben Abacha & Demner-Fushman, 2019).

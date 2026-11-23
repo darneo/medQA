@@ -1,4 +1,4 @@
-# Окружение для medbot на Windows с видеокартой NVIDIA (запускать из корня проекта):
+﻿# Окружение для medbot на Windows с видеокартой NVIDIA (запускать из корня проекта):
 #   powershell -ExecutionPolicy Bypass -File .\scripts\setup_gpu.ps1
 # Ставит uv, Python 3.11, .venv, PyTorch с CUDA 12.8 и зависимости. Нужен интернет, ~10–20 минут.
 $ErrorActionPreference = "Stop"
