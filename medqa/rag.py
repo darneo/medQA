@@ -2,10 +2,9 @@
 
 Как это работает:
 
-1. **Индекс** (`RAGIndex.build`, один раз). Каждая пара «вопрос + начало ответа» из **train**-части
-   датасета — на каждом из трёх языков — превращается моделью эмбеддингов bge-m3 в вектор смысла
+1. **Индекс** (`RAGIndex.build`, один раз). Каждая пара «вопрос + начало ответа» из **всего** датасета —
+   на каждом из трёх языков — превращается моделью эмбеддингов bge-m3 в вектор смысла
    (1024 числа). Векторы нормированы и сохраняются в data/rag_index/.
-   Validation в индекс не попадает: при проверке на validation модель не может подсмотреть эталон.
 2. **Поиск** (`search`). Вопрос тоже превращается в вектор той же моделью. Среди пар того же языка
    ищутся k с наибольшим косинусным сходством (у нормированных векторов это скалярное произведение).
 3. **Справка** (`format_context`). Найденные ответы, обрезанные до max_chars, склеиваются в текст,
@@ -25,7 +24,7 @@ import numpy as np
 import pandas as pd
 
 from .config import LANGS, RAG_EMBED_MODEL, RAG_INDEX_DIR
-from .data import col, load_dataset, split_train_val
+from .data import col, load_dataset
 
 ANSWER_CHARS_IN_INDEX = 600   # сколько символов ответа добавлять к вопросу при построении вектора
 
@@ -36,7 +35,7 @@ def _encoder(model_name: str, device: str | None):
     if device is None:
         import torch
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        device = "cuda" if torch.cuda.device_count() else "cpu"
     model = SentenceTransformer(model_name, device=device)
     model.max_seq_length = 512
     if device == "cuda":
@@ -45,7 +44,7 @@ def _encoder(model_name: str, device: str | None):
 
 
 class RAGIndex:
-    """Индекс эмбеддингов по train-части датасета. Поиск — внутри одного языка."""
+    """Индекс эмбеддингов по всему датасету. Поиск — внутри одного языка."""
 
     def __init__(self, index_dir: Path | str = RAG_INDEX_DIR, device: str = "cpu"):
         self.index_dir = Path(index_dir)
@@ -70,15 +69,15 @@ class RAGIndex:
     @staticmethod
     def build(df: pd.DataFrame | None = None, index_dir: Path | str = RAG_INDEX_DIR,
               model_name: str = RAG_EMBED_MODEL, device: str | None = None, batch_size: int = 64) -> Path:
-        """Собрать индекс по train-части (validation исключена) и сохранить в index_dir."""
-        train, _ = split_train_val(df if df is not None else load_dataset())
-        passages = pd.DataFrame([{"train_row": i, "lang": lang, "question": r[col("question", lang)],
+        """Собрать индекс по всему датасету и сохранить в index_dir."""
+        data = df if df is not None else load_dataset()
+        passages = pd.DataFrame([{"row": i, "lang": lang, "question": r[col("question", lang)],
                                   "answer": r[col("answer", lang)]}
-                                 for i, r in train.iterrows() for lang in LANGS])
+                                 for i, r in data.iterrows() for lang in LANGS])
         texts = (passages["question"] + "\n" + passages["answer"].str[:ANSWER_CHARS_IN_INDEX]).tolist()
         t0 = time.time()
         model = _encoder(model_name, device)
-        print(f"Эмбеддинги: {len(texts)} пар ({len(train)} строк train × {len(LANGS)} языка), модель {model_name}, "
+        print(f"Эмбеддинги: {len(texts)} пар ({len(data)} строк × {len(LANGS)} языка), модель {model_name}, "
               f"{model.device}", flush=True)
         emb = model.encode(texts, batch_size=batch_size, normalize_embeddings=True, convert_to_numpy=True,
                            show_progress_bar=True)
@@ -86,8 +85,8 @@ class RAGIndex:
         index_dir.mkdir(parents=True, exist_ok=True)
         passages.to_parquet(index_dir / "passages.parquet", index=False)
         np.save(index_dir / "embeddings.npy", emb.astype(np.float16))
-        meta = {"model": model_name, "passages": len(passages), "train_rows": len(train), "dim": int(emb.shape[1]),
-                "answer_chars_in_index": ANSWER_CHARS_IN_INDEX, "split": "train (validation исключена)",
+        meta = {"model": model_name, "passages": len(passages), "rows": len(data), "dim": int(emb.shape[1]),
+                "answer_chars_in_index": ANSWER_CHARS_IN_INDEX, "split": "весь датасет",
                 "built_seconds": round(time.time() - t0)}
         (index_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"Индекс сохранён в {index_dir} за {meta['built_seconds']} с", flush=True)
@@ -96,7 +95,7 @@ class RAGIndex:
     # ---------------------------------------------------------------- поиск
 
     def search_many(self, queries: list[tuple[str, str]], k: int = 3) -> list[list[dict]]:
-        """Для каждого (вопрос, язык) — k самых похожих пар того же языка: [{score, question, answer, train_row}]."""
+        """Для каждого (вопрос, язык) — k самых похожих пар того же языка: [{score, question, answer, row}]."""
         vectors = self.model.encode([q for q, _ in queries], normalize_embeddings=True, convert_to_numpy=True,
                                     batch_size=32).astype(np.float32)
         results = []
@@ -107,7 +106,7 @@ class RAGIndex:
             scores = self.embeddings[idx] @ vec
             top = np.argsort(-scores)[:k]
             results.append([{"score": float(scores[t]), **self.passages.iloc[idx[t]][["question", "answer",
-                                                                                     "train_row"]].to_dict()}
+                                                                                     "row"]].to_dict()}
                             for t in top])
         return results
 

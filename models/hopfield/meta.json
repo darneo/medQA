@@ -1,0 +1,19 @@
+{
+  "steps": 1,
+  "beta": 50.591,
+  "memory": "qa",
+  "embed_model": "BAAI/bge-m3",
+  "dim": 1024,
+  "objective": "та же болезнь и тип вопроса; свой ответ скрыт в доле hidden_share примеров",
+  "data": "весь датасет",
+  "final": {
+    "epoch": 5,
+    "loss": 0.1183,
+    "beta": 50.59,
+    "own exact@1": 0.9565,
+    "own type@1": 0.9906,
+    "hidden focus@1": 0.9736,
+    "hidden type@1": 0.1181
+  },
+  "trained": "2026-11-23 04:03"
+}

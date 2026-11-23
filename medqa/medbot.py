@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .config import LANGS, MEDBOT_BASE_MODEL, MODELS_DIR, SEED
-from .data import load_dataset, split_train_val, to_examples
+from .data import first_adapter_unseen, load_dataset, to_examples
 from .prompts import build_messages
 from .text import advises_help, detect_language, localize_emergency, strip_think
 
@@ -141,12 +141,15 @@ def evaluate_loss(model, tokenizer, examples: list[dict], max_seq_length: int = 
     return result
 
 
-def validation_examples(val_rows: int | None = None) -> list[dict]:
-    """Примеры validation (те же 1437 строк × 3 языка, что не участвовали в обучении)."""
-    _, val = split_train_val(load_dataset())
-    if val_rows:
-        val = val.head(val_rows)
-    return to_examples(val)
+def dataset_examples(rows: int | None = None, unseen_only: bool = False) -> list[dict]:
+    """Примеры датасета для подсчёта loss: первые rows строк (× 3 языка) всего датасета
+    или только строк, которых не было в первом обучении (unseen_only)."""
+    df = load_dataset()
+    if unseen_only:
+        df = first_adapter_unseen(df)
+    if rows:
+        df = df.head(rows)
+    return to_examples(df)
 
 
 # ---------------------------------------------------------------- обучение
@@ -159,6 +162,8 @@ class TrainOptions:
     shard: int = 0
     shards: int = 1
     max_train_rows: int = 0
+    rows: str = "all"                  # all — весь датасет; unseen — строки, которых не было в первом обучении
+    init_adapter: Path | None = None   # продолжить обучение этого адаптера, а не начинать новый
     epochs: float = 1.0
     lr: float = 2e-4
     max_seq_length: int = 1024
@@ -178,7 +183,11 @@ def _sft_kwargs(SFTConfig, SFTTrainer, max_seq_length: int, tokenizer) -> tuple[
 
 
 def train(opts: TrainOptions) -> Path:
-    """QLoRA-дообучение Qwen3-4B. Чекпоинты каждые save_steps шагов, повторный запуск продолжает с последнего."""
+    """QLoRA-дообучение Qwen3-4B на всём датасете (validation нет).
+
+    init_adapter + rows="unseen" — дообучить готовый адаптер на строках, которых он ещё не видел.
+    Чекпоинты каждые save_steps шагов, повторный запуск продолжает с последнего.
+    """
     import random
 
     import numpy as np
@@ -203,36 +212,51 @@ def train(opts: TrainOptions) -> Path:
     props = torch.cuda.get_device_properties(0)
     print(f"GPU: {torch.cuda.get_device_name(0)}; VRAM: {props.total_memory / 1024**3:.1f} ГБ", flush=True)
 
-    train_df, val_df = split_train_val(load_dataset(verbose=True))
+    if opts.rows not in ("all", "unseen"):
+        raise ValueError("rows: all или unseen")
+    train_df = load_dataset(verbose=True)
+    if opts.rows == "unseen":
+        train_df = first_adapter_unseen(train_df)
     if opts.max_train_rows and len(train_df) > opts.max_train_rows:
         train_df = train_df.head(opts.max_train_rows)
     if opts.shards > 1:
         train_df = train_df.iloc[opts.shard::opts.shards].reset_index(drop=True)
         print(f"Шард {opts.shard} из {opts.shards}", flush=True)
-    print(f"Train: {len(train_df)} строк × 3 языка; validation: {len(val_df)} строк × 3 языка", flush=True)
+    print(f"Обучение: {len(train_df)} строк × 3 языка ({opts.rows})", flush=True)
 
-    model, tokenizer = load_model(opts.base_model, opts.max_seq_length, for_inference=False)
+    start = opts.init_adapter or opts.base_model
+    model, tokenizer = load_model(start, opts.max_seq_length, for_inference=False)
 
     def texts(frame):
         return Dataset.from_list([
             {"text": chat_text(tokenizer, build_messages(e["question"], e["lang"], answer=e["answer"]), False)}
             for e in to_examples(frame)])
 
-    train_ds, val_ds = texts(train_df), texts(val_df)
-    model = FastModel.get_peft_model(
-        model, finetune_vision_layers=False, finetune_language_layers=True, finetune_attention_modules=True,
-        finetune_mlp_modules=True, r=opts.lora_r, lora_alpha=opts.lora_r, lora_dropout=0, bias="none",
-        use_gradient_checkpointing="unsloth", random_state=SEED, use_rslora=False)
+    train_ds = texts(train_df)
+    if opts.init_adapter:
+        # адаптер уже загружен вместе с базой: размораживаем его LoRA-веса и учим дальше
+        print("Продолжаю обучение адаптера:", opts.init_adapter, flush=True)
+        for name, param in model.named_parameters():
+            param.requires_grad_("lora_" in name)
+        FastModel.for_training(model)
+    else:
+        model = FastModel.get_peft_model(
+            model, finetune_vision_layers=False, finetune_language_layers=True, finetune_attention_modules=True,
+            finetune_mlp_modules=True, r=opts.lora_r, lora_alpha=opts.lora_r, lora_dropout=0, bias="none",
+            use_gradient_checkpointing="unsloth", random_state=SEED, use_rslora=False)
     model.print_trainable_parameters()
 
     seq_kw, tok_kw = _sft_kwargs(SFTConfig, SFTTrainer, opts.max_seq_length, tokenizer)
+    # прогрев 3 % шагов; в новых transformers warmup_ratio убран — считаем warmup_steps сами
+    total_steps = math.ceil(len(train_ds) / (opts.batch_size * opts.grad_accum) * opts.epochs)
+    seq_kw["warmup_steps"] = max(1, round(total_steps * 0.03))
     args = SFTConfig(output_dir=str(ckpt_dir), dataset_text_field="text", per_device_train_batch_size=opts.batch_size,
-                     per_device_eval_batch_size=opts.batch_size, gradient_accumulation_steps=opts.grad_accum,
-                     num_train_epochs=opts.epochs, learning_rate=opts.lr, warmup_ratio=0.03, logging_steps=10,
-                     eval_strategy="epoch", save_strategy="steps", save_steps=opts.save_steps, save_total_limit=2,
+                     gradient_accumulation_steps=opts.grad_accum,
+                     num_train_epochs=opts.epochs, learning_rate=opts.lr, logging_steps=10,
+                     eval_strategy="no", save_strategy="steps", save_steps=opts.save_steps, save_total_limit=2,
                      optim="adamw_8bit", gradient_checkpointing=True, seed=SEED, report_to="none",
                      dataset_num_proc=1, **seq_kw)
-    trainer = SFTTrainer(model=model, train_dataset=train_ds, eval_dataset=val_ds, args=args, **tok_kw)
+    trainer = SFTTrainer(model=model, train_dataset=train_ds, args=args, **tok_kw)
     if opts.responses_only:
         # loss только по ответу ассистента: повторять системную подсказку и вопрос модели не нужно
         from unsloth.chat_templates import train_on_responses_only
@@ -244,12 +268,15 @@ def train(opts: TrainOptions) -> Path:
     resume = get_last_checkpoint(str(ckpt_dir)) if ckpt_dir.exists() else None
     if resume:
         print("Продолжаю с чекпоинта:", resume, flush=True)
-    print(trainer.train(resume_from_checkpoint=resume).metrics, flush=True)
+    metrics = trainer.train(resume_from_checkpoint=resume).metrics
+    print(metrics, flush=True)
 
     model.save_pretrained(str(adapter_dir))
     tokenizer.save_pretrained(str(adapter_dir))
-    metrics = trainer.evaluate()
-    (out / "validation_metrics.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
+    report = {"rows": opts.rows, "examples": len(train_ds), "init_adapter": str(opts.init_adapter or ""),
+              "epochs": opts.epochs, "lr": opts.lr, "train_metrics": metrics,
+              "loss_log": [h for h in trainer.state.log_history if "loss" in h]}
+    (out / "train_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print("Адаптер сохранён:", adapter_dir.resolve(), flush=True)
     return adapter_dir
 

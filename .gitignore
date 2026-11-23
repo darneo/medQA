@@ -8,9 +8,12 @@ logs/
 models/medbot_merged*/
 # Saluki 27B (GGUF) и сборка llama.cpp — скачиваются отдельно
 models/saluki/
+models/lingsante/
 tools/
 # индекс RAG (эмбеддинги) — пересобирается командой
 data/rag_index/
+# память Хопфилда (эмбеддинги) — пересобирается командой python -m medqa hopfield build
+data/hopfield_cache/
 .idea/
 
 # промежуточное обучение
@@ -24,3 +27,9 @@ unsloth_compiled_cache/
 
 # пробные прогоны
 results/**/*_TRIAL*
+
+# большие выгрузки Хопфилда (>100 МБ, лимит GitHub) — пересобираются: python -m medqa hopfield eval / export
+results/hopfield/eval_dataset.jsonl
+results/hopfield/hopfield_vs_reference.csv
+# веса адаптера medbot_train_full (66 МБ) — хранятся на Hugging Face, как и основной адаптер
+models/medbot_train_full/lora_adapter/adapter_model.safetensors

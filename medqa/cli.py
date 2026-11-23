@@ -8,8 +8,8 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .config import (DATASET, LANG_NAMES, LANGS, MEDBOT_ADAPTER, MEDBOT_BASE_MODEL, MEDBOT_RESULTS, MODELS_DIR,
-                     RAG_EMBED_MODEL)
+from .config import (DATASET, HOPFIELD_DIR, LANG_NAMES, LANGS, MEDBOT_ADAPTER, MEDBOT_BASE_MODEL, MEDBOT_RESULTS,
+                     MODELS_DIR, RAG_EMBED_MODEL)
 
 
 _ARGPARSE_RU = {
@@ -48,11 +48,10 @@ def _utf8_console() -> None:
 
 
 def cmd_data(args) -> None:
-    from .data import col, load_dataset, split_train_val
+    from .data import col, load_dataset
 
     df = load_dataset(args.data, verbose=True)
-    train, val = split_train_val(df)
-    print(f"Train: {len(train)} строк; validation: {len(val)} строк (× 3 языка)")
+    print(f"Всего: {len(df)} строк × 3 языка (validation-выборки нет — всё идёт в обучение и поиск)")
     print("\nДлина ответов, символов:")
     for lang in LANGS:
         s = df[col("answer", lang)].str.len()
@@ -70,7 +69,8 @@ def cmd_medbot_train(args) -> None:
     from .medbot import TrainOptions, train
 
     train(TrainOptions(output=Path(args.output), base_model=args.base_model, shard=args.shard, shards=args.shards,
-                       max_train_rows=args.max_train_rows, epochs=args.epochs, lr=args.lr,
+                       max_train_rows=args.max_train_rows, rows=args.rows,
+                       init_adapter=Path(args.init_adapter) if args.init_adapter else None, epochs=args.epochs, lr=args.lr,
                        max_seq_length=args.max_seq_length, batch_size=args.batch_size, grad_accum=args.grad_accum,
                        save_steps=args.save_steps, responses_only=not args.full_text_loss))
 
@@ -114,15 +114,15 @@ def cmd_medbot_test(args) -> None:
 
 
 def cmd_medbot_eval(args) -> None:
-    from .medbot import evaluate_loss, load_model, validation_examples
+    from .medbot import dataset_examples, evaluate_loss, load_model
 
     model, tokenizer = load_model(args.adapter, args.max_seq_length)
-    result = evaluate_loss(model, tokenizer, validation_examples(args.val_rows), args.max_seq_length,
+    result = evaluate_loss(model, tokenizer, dataset_examples(args.rows, args.unseen_only), args.max_seq_length,
                            include_prompt=args.include_prompt)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if args.save:
         MEDBOT_RESULTS.mkdir(parents=True, exist_ok=True)
-        name = "validation_loss_full_dialog.json" if args.include_prompt else "validation_loss_answer_only.json"
+        name = "dataset_loss_full_dialog.json" if args.include_prompt else "dataset_loss_answer_only.json"
         (MEDBOT_RESULTS / name).write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         print("Сохранено:", MEDBOT_RESULTS / name)
 
@@ -168,9 +168,16 @@ def cmd_saluki_chat(args) -> None:
     from .rag import RAGIndex, format_context
     from .saluki import SalukiServer, ask
 
-    rag = RAGIndex() if args.rag else None
+    rag = None
+    if args.rag == "hopfield":
+        from .hopfield import HopfieldQA
+
+        rag = HopfieldQA()
+    elif args.rag:
+        rag = RAGIndex()
     with SalukiServer(_server_config(args)) as server:
-        print(f"Saluki{' + RAG' if rag else ''}, язык: {LANG_NAMES[args.lang]}. Пустая строка или «выход» — завершить.")
+        print(f"Saluki{f' + RAG ({args.rag})' if rag else ''}, язык: {LANG_NAMES[args.lang]}. "
+              "Пустая строка или «выход» — завершить.")
         while True:
             try:
                 question = input("\nВы: ").strip()
@@ -198,7 +205,64 @@ def cmd_rag_search(args) -> None:
     from .rag import RAGIndex
 
     for h in RAGIndex().search(args.question, args.lang, args.k):
-        print(f"[похожесть {h['score']:.3f}, строка train {h['train_row']}] {h['question']}\n  {h['answer'][:300]}\n")
+        print(f"[похожесть {h['score']:.3f}, строка {h['row']}] {h['question']}\n  {h['answer'][:300]}\n")
+
+
+# ---------------------------------------------------------------- hopfield
+
+
+def cmd_hopfield_build(args) -> None:
+    from .hopfield import build_cache
+
+    build_cache(model_name=args.model, device=args.device)
+
+
+def cmd_hopfield_train(args) -> None:
+    from .hopfield import TrainOptions, train
+
+    train(TrainOptions(out=args.out, epochs=args.epochs, batch_size=args.batch_size, lr=args.lr, steps=args.steps,
+                       beta=args.beta, memory=args.memory, hidden_share=args.hidden_share, device=args.device))
+
+
+def cmd_hopfield_ask(args) -> None:
+    from .hopfield import HopfieldQA
+
+    qa = HopfieldQA(model_dir=None if args.untrained else args.model_dir, steps=args.steps, beta=args.beta)
+    kind = "обученная" if qa.trained else "без обучения"
+    print(f"Hopfield-QA ({kind}, шагов {qa.steps}), язык: {LANG_NAMES[args.lang]}\n")
+    hits = qa.search(args.question, args.lang, args.k)
+    best = hits[0]
+    if best["score"] < args.min_confidence:
+        print(f"Не уверена (p = {best['score']:.3f} < {args.min_confidence}) — ответа нет.\n")
+    else:
+        print(f"Ответ (уверенность {best['score']:.3f}, вспомнен вопрос: «{best['question']}»):\n{best['answer']}\n")
+    if args.k > 1:
+        print("Другие кандидаты:")
+        for h in hits[1:]:
+            print(f"  p = {h['score']:.3f}  {h['question']}")
+
+
+def cmd_hopfield_eval(args) -> None:
+    from .hopfield import evaluate
+
+    summary = evaluate(rows=args.rows, chrf=not args.no_chrf)
+    names = [n for n in summary if not n.startswith("_")]
+    for mode, title in (("hidden", "свой ответ скрыт"), ("recall", "свой ответ в памяти")):
+        keys = list(summary[names[0]][mode]["all"])
+        print(f"\nВесь датасет, {title} (доли 0–1, chrF 0–100):\n{'метрика':<12}" + "".join(f"{n:>18}" for n in names))
+        for k in keys:
+            print(f"{k:<12}" + "".join(f"{summary[n][mode]['all'].get(k, float('nan')):>18.4f}" for n in names))
+    for k, v in summary["_note"].items():
+        print(f"{k}: {v}")
+    print("\nРезультаты: results/hopfield/eval_summary.json, eval_dataset.jsonl")
+
+
+def cmd_hopfield_export(args) -> None:
+    from .hopfield import export_csv
+
+    path = export_csv(args.out, args.lang, args.rows, None if args.untrained else args.model_dir,
+                      hide_own=not args.show_own)
+    print("Сохранено:", path)
 
 
 # ---------------------------------------------------------------- парсер
@@ -233,7 +297,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--base-model", default=MEDBOT_BASE_MODEL)
     p.add_argument("--shard", type=int, default=0, help="номер шарда (для обучения на нескольких машинах)")
     p.add_argument("--shards", type=int, default=1, help="всего шардов")
-    p.add_argument("--max-train-rows", type=int, default=0, help="ограничить train (0 — все строки)")
+    p.add_argument("--max-train-rows", type=int, default=0, help="ограничить число строк (0 — все)")
+    p.add_argument("--rows", choices=["all", "unseen"], default="all",
+                   help="all — весь датасет; unseen — строки, которых не было в первом обучении medbot")
+    p.add_argument("--init-adapter", help="дообучить этот адаптер (lora_adapter), а не начинать новый")
     p.add_argument("--epochs", type=float, default=1.0)
     p.add_argument("--lr", type=float, default=2e-4)
     p.add_argument("--max-seq-length", type=int, default=1024)
@@ -254,10 +321,11 @@ def build_parser() -> argparse.ArgumentParser:
     _add_medbot_gen_args(p)
     p.set_defaults(func=cmd_medbot_test)
 
-    p = ms.add_parser("eval", help="loss на validation по языкам")
+    p = ms.add_parser("eval", help="loss на датасете по языкам")
     p.add_argument("--adapter", default=str(MEDBOT_ADAPTER))
     p.add_argument("--max-seq-length", type=int, default=1024, help="как при обучении, иначе loss несравним")
-    p.add_argument("--val-rows", type=int, help="взять только N строк validation (быстрее)")
+    p.add_argument("--rows", type=int, help="взять только N строк датасета (быстрее)")
+    p.add_argument("--unseen-only", action="store_true", help="только строки, которых не было в первом обучении")
     p.add_argument("--include-prompt", action="store_true",
                    help="считать loss по всему диалогу, как в старом отчёте (по умолчанию только по ответу)")
     p.add_argument("--save", action="store_true", help="сохранить результат в results/medbot/")
@@ -285,14 +353,15 @@ def build_parser() -> argparse.ArgumentParser:
         p.set_defaults(func=func)
         if name == "chat":
             p.add_argument("--lang", default="ru", choices=LANGS)
-            p.add_argument("--rag", action="store_true", help="подсказывать похожие ответы из датасета")
+            p.add_argument("--rag", nargs="?", const="cosine", choices=["cosine", "hopfield"],
+                           help="подсказывать похожие ответы из датасета: cosine (по умолчанию) или hopfield")
             p.add_argument("--k", type=int, default=3, help="сколько пар давать при --rag")
             p.add_argument("--max-tokens", type=int, default=512)
 
     # rag
     r = sub.add_parser("rag", help="RAG: индекс эмбеддингов по датасету и поиск похожих вопросов")
     rs = r.add_subparsers(dest="rag_command", required=True, metavar="действие")
-    p = rs.add_parser("build", help="собрать индекс по train-части в data/rag_index/")
+    p = rs.add_parser("build", help="собрать индекс по всему датасету в data/rag_index/")
     p.add_argument("--model", default=RAG_EMBED_MODEL, help="модель эмбеддингов")
     p.add_argument("--device", help="cuda или cpu (по умолчанию cuda, если есть)")
     p.set_defaults(func=cmd_rag_build)
@@ -301,6 +370,49 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lang", default="ru", choices=LANGS)
     p.add_argument("--k", type=int, default=3)
     p.set_defaults(func=cmd_rag_search)
+
+    # hopfield
+    h = sub.add_parser("hopfield", help="Hopfield-QA: сеть Хопфилда вспоминает готовый ответ из датасета")
+    hs = h.add_subparsers(dest="hopfield_command", required=True, metavar="действие")
+    p = hs.add_parser("build", help="эмбеддинги памяти (все ответы) и вопросов в data/hopfield_cache/")
+    p.add_argument("--model", default=RAG_EMBED_MODEL, help="модель эмбеддингов")
+    p.add_argument("--device", help="cuda или cpu (по умолчанию cuda, если есть)")
+    p.set_defaults(func=cmd_hopfield_build)
+    p = hs.add_parser("train", help="обучить проекции W_Q, W_K и β → models/hopfield/")
+    p.add_argument("--out", default=str(HOPFIELD_DIR))
+    p.add_argument("--epochs", type=int, default=5)
+    p.add_argument("--batch-size", type=int, default=512)
+    p.add_argument("--lr", type=float, default=3e-4)
+    p.add_argument("--steps", type=int, default=1, help="шагов обновления Хопфилда")
+    p.add_argument("--beta", type=float, default=50.0, help="начальная β (обучается)")
+    p.add_argument("--memory", choices=["qa", "answer"], default="qa",
+                   help="образ памяти: qa — «вопрос + ответ» (по умолчанию), answer — только ответ")
+    p.add_argument("--hidden-share", type=float, default=0.5,
+                   help="доля примеров со скрытым своим ответом (0 — всегда в памяти)")
+    p.add_argument("--device", help="cuda или cpu")
+    p.set_defaults(func=cmd_hopfield_train)
+    p = hs.add_parser("ask", help="задать вопрос: ответ из памяти и уверенность")
+    p.add_argument("question")
+    p.add_argument("--lang", default="ru", choices=LANGS)
+    p.add_argument("--k", type=int, default=3, help="сколько кандидатов показать")
+    p.add_argument("--model-dir", default=str(HOPFIELD_DIR))
+    p.add_argument("--untrained", action="store_true", help="сеть без обучения (W = I)")
+    p.add_argument("--steps", type=int, help="шагов обновления (по умолчанию — как при обучении)")
+    p.add_argument("--beta", type=float, help="β вместо обученной")
+    p.add_argument("--min-confidence", type=float, default=0.0, help="ниже — отказ от ответа")
+    p.set_defaults(func=cmd_hopfield_ask)
+    p = hs.add_parser("eval", help="проверка по датасету: RAG vs косинус vs Хопфилд vs обученный Хопфилд")
+    p.add_argument("--rows", type=int, help="взять только N строк датасета")
+    p.add_argument("--no-chrf", action="store_true", help="не считать chrF (быстрее)")
+    p.set_defaults(func=cmd_hopfield_eval)
+    p = hs.add_parser("export", help="CSV: вопросы датасета, реальный ответ и ответ Hopfield рядом")
+    p.add_argument("--out", help="путь CSV (по умолчанию results/hopfield/hopfield_vs_reference.csv)")
+    p.add_argument("--lang", nargs="+", choices=LANGS, help="только эти языки (по умолчанию все три)")
+    p.add_argument("--rows", type=int, help="взять только N строк датасета")
+    p.add_argument("--show-own", action="store_true", help="не скрывать свой ответ (по умолчанию скрыт)")
+    p.add_argument("--model-dir", default=str(HOPFIELD_DIR))
+    p.add_argument("--untrained", action="store_true", help="сеть без обучения (W = I)")
+    p.set_defaults(func=cmd_hopfield_export)
     return parser
 
 
