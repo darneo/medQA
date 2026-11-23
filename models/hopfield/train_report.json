@@ -1,0 +1,93 @@
+{
+  "options": {
+    "out": "C:\\projects\\medQA\\models\\hopfield",
+    "epochs": 5,
+    "batch_size": 512,
+    "lr": 0.0003,
+    "steps": 1,
+    "beta": 50.0,
+    "identity_decay": 0.001,
+    "memory": "qa",
+    "hidden_share": 0.5,
+    "device": null
+  },
+  "device": "cuda",
+  "objective": "та же болезнь и тип вопроса; свой ответ скрыт в доле hidden_share примеров",
+  "train_queries": 43086,
+  "memory": 43104,
+  "baseline_cosine": {
+    "own exact@1": 0.9568,
+    "own type@1": 0.989,
+    "hidden focus@1": 0.7794,
+    "hidden type@1": 0.1102
+  },
+  "baseline_hopfield": {
+    "own exact@1": 0.9558,
+    "own type@1": 0.9882,
+    "hidden focus@1": 0.7512,
+    "hidden type@1": 0.1093
+  },
+  "epochs": [
+    {
+      "epoch": 1,
+      "loss": 0.2256,
+      "beta": 50.06,
+      "own exact@1": 0.9545,
+      "own type@1": 0.988,
+      "hidden focus@1": 0.9519,
+      "hidden type@1": 0.1114
+    },
+    {
+      "epoch": 2,
+      "loss": 0.152,
+      "beta": 50.16,
+      "own exact@1": 0.9478,
+      "own type@1": 0.982,
+      "hidden focus@1": 0.959,
+      "hidden type@1": 0.1125
+    },
+    {
+      "epoch": 3,
+      "loss": 0.131,
+      "beta": 50.32,
+      "own exact@1": 0.9539,
+      "own type@1": 0.9882,
+      "hidden focus@1": 0.9682,
+      "hidden type@1": 0.1172
+    },
+    {
+      "epoch": 4,
+      "loss": 0.127,
+      "beta": 50.46,
+      "own exact@1": 0.9575,
+      "own type@1": 0.9916,
+      "hidden focus@1": 0.9694,
+      "hidden type@1": 0.1174
+    },
+    {
+      "epoch": 5,
+      "loss": 0.1183,
+      "beta": 50.59,
+      "own exact@1": 0.9565,
+      "own type@1": 0.9906,
+      "hidden focus@1": 0.9736,
+      "hidden type@1": 0.1181
+    }
+  ],
+  "final": {
+    "epoch": 5,
+    "loss": 0.1183,
+    "beta": 50.59,
+    "own exact@1": 0.9565,
+    "own type@1": 0.9906,
+    "hidden focus@1": 0.9736,
+    "hidden type@1": 0.1181
+  },
+  "trained_steps0": {
+    "own exact@1": 0.9575,
+    "own type@1": 0.9913,
+    "hidden focus@1": 0.9693,
+    "hidden type@1": 0.1182
+  },
+  "train_seconds": 42
+}

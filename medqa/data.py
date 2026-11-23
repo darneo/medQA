@@ -1,18 +1,19 @@
-"""Загрузка датасета MedQuAD (en/ru/kk) и разбиение на train / validation.
+"""Загрузка датасета MedQuAD (en/ru/kk).
 
-Фильтр и разбиение менять нельзя: адаптер medbot обучен именно на этом
-train, а validation (1437 строк) должен остаться теми же вопросами.
+Отдельной validation-выборки нет: RAG, Хопфилд и medbot используют весь датасет.
+Фильтр строк менять нельзя — от него зависят номера строк в индексах.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Iterable
 
 import numpy as np
 import pandas as pd
 
-from .config import DATASET, LANGS, SEED, VAL_RATIO
+from .config import DATASET, LANGS, SEED
 
 
 def col(base: str, lang: str) -> str:
@@ -42,22 +43,41 @@ def load_dataset(path: Path | str | None = None, verbose: bool = False) -> pd.Da
     return df[complete].reset_index(drop=True)
 
 
-def split_train_val(df: pd.DataFrame, val_ratio: float = VAL_RATIO,
-                    seed: int = SEED) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Делит ИСХОДНЫЕ строки на train и validation.
+def first_adapter_unseen(df: pd.DataFrame) -> pd.DataFrame:
+    """Строки, которых НЕ было в первом обучении medbot (1437 строк, 10 %, seed 42).
 
-    Делим до разворачивания на языки, поэтому переводы одного вопроса никогда
-    не попадают одновременно в обучение и проверку. Алгоритм совпадает с тем,
-    на котором обучен адаптер medbot (validation = 1437 строк).
+    Нужна только для дообучения medbot «на остальных данных» и для старых ноутбуков сравнения.
     """
-    if not 0 < val_ratio < 1:
-        raise ValueError("val_ratio должен быть между 0 и 1")
-    order = np.random.default_rng(seed).permutation(len(df))
-    val_n = max(1, round(len(df) * val_ratio))
-    val_ids = set(order[:val_n].tolist())
-    train = df.iloc[[i for i in range(len(df)) if i not in val_ids]].reset_index(drop=True)
-    val = df.iloc[order[:val_n]].reset_index(drop=True)
-    return train, val
+    order = np.random.default_rng(SEED).permutation(len(df))
+    return df.iloc[order[:round(len(df) * 0.1)]].reset_index(drop=True)
+
+
+QUESTION_TYPES = [  # (тип, шаблон английского вопроса MedQuAD) — порядок важен: сначала частные
+    ("symptoms", r"symptom"),
+    ("genetic changes", r"genetic changes"),
+    ("inheritance", r"inherit"),
+    ("frequency", r"how many people|how common"),
+    ("outlook", r"outlook"),
+    ("research", r"research|clinical trial"),
+    ("susceptibility", r"at risk"),
+    ("prevention", r"prevent"),
+    ("stages", r"stages"),
+    ("complications", r"complication"),
+    ("support", r"support"),
+    ("exams and tests", r"diagnos"),
+    ("treatment", r"treat|what to do for"),
+    ("causes", r"\bcause"),
+    ("information", r"^what (is|are)\b|information about"),
+]
+
+
+def question_type(question_en: str) -> str:
+    """Тип вопроса по шаблону английской формулировки (в датасете колонка qtype пустая — «Unknown»)."""
+    q = question_en.lower()
+    for name, pattern in QUESTION_TYPES:
+        if re.search(pattern, q):
+            return name
+    return "other"
 
 
 def to_examples(frame: pd.DataFrame, langs: Iterable[str] = LANGS) -> list[dict]:
