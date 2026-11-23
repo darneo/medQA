@@ -106,12 +106,16 @@ def run_llama(qs: pd.DataFrame, max_new_tokens: int, *, use_rag: bool, config=No
 
 
 def lingsante_config():
-    """LingSante-3.1-air-VL: все эксперты MoE в ОЗУ (--cpu-moe), остальные слои на видеокарте."""
+    """LingSante-3.1-air-VL: все эксперты MoE в ОЗУ (--cpu-moe), остальные слои на видеокарте.
+
+    --no-op-offload: подсказку эксперты считают на процессоре, а не копируются ради неё на видеокарту.
+    На RTX 5060 + 32 ГБ ОЗУ это в 2.5 раза быстрее чтение подсказки (38 против 15 ток/с, RAG ~540 ток.).
+    """
     from medqa.config import LINGSANTE_MODEL
     from medqa.saluki import ServerConfig
 
     return ServerConfig(model=LINGSANTE_MODEL, port=8081, ctx=8192, parallel=1, gpu_layers=99,
-                        extra=["--cpu-moe"])
+                        extra=["--cpu-moe", "--no-op-offload"])
 
 
 TITLES = {"hopfield": "Хопфилд", "hopfield_hidden": "Хопфилд (свой ответ скрыт)", "medbot_old": "medbot старый", "medbot_full": "medbot новый",
