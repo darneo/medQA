@@ -149,7 +149,8 @@ def main() -> int:
     p.add_argument("--rows", type=int, default=8, help="случайных строк датасета (× 3 языка)")
     p.add_argument("--seed", type=int, default=2026)
     p.add_argument("--only", nargs="+", choices=MODELS, default=MODELS)
-    p.add_argument("--max-new-tokens", type=int, default=384)
+    p.add_argument("--max-new-tokens", type=int, default=1024,
+                   help="лимит длины ответа; при 384 medbot и LingSante обрезались в 13–29 % ответов")
     p.add_argument("--redo", action="store_true", help="пересчитать модели, у которых уже есть результат")
     args = p.parse_args()
 
