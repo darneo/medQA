@@ -208,6 +208,44 @@ Retrieval helps the base model (most in Kazakh) but hurts medbot, which was neve
 gets distracted by neighbouring answers. Fine-tuning alone (36–49 chrF) beats base + RAG (27–37). Training medbot
 with RAG-style prompts is a next step.
 
+**Decoding settings chosen on a dev split.** Held-out rows 150–249 (100 per language, disjoint from the 150 test
+rows) were used to choose generation settings for medbot (`scripts/decoding_sweep.py`, medbot_old, 50 per language;
+selection rule fixed in advance: highest mean sentence chrF). Results (`results/harness/decoding_sweep.md`):
+
+| setting | chrF (EN / RU / KK) | semantic | loops > 20 % |
+|---|---|---|---|
+| **max 768 new tokens** | **42.5** (48.2 / 40.7 / 38.8) | 0.846 | 9 % |
+| default: repetition penalty 1.1, max 512 | 41.0 (47.3 / 39.7 / 36.1) | 0.846 | 5 % |
+| repetition penalty 1.2 | 40.2 (46.0 / 41.0 / 33.7) | 0.811 | 1 % |
+| no_repeat_ngram_size 8 | 39.3 (47.1 / 38.5 / 32.2) | 0.828 | 0 % |
+| repetition penalty 1.05 | 39.2 (44.4 / 38.6 / 34.7) | 0.842 | 17 % |
+| repetition penalty 1.0 | 37.0 (41.4 / 38.0 / 31.6) | 0.836 | 35 % |
+| repetition penalty 1.3 | 32.9 (37.9 / 34.1 / 26.9) | 0.737 | 1 % |
+
+Penalty 1.1 is the best trade-off; stronger penalties or n-gram blocking remove loops but damage the answers. The
+only gain is a larger length budget. The winner was then run **once** on the test set (medbot_new, 450 questions):
+
+| lang | chrF max 512 → 768 | Δ (95 % CI) | ROUGE-L | loops > 20 % |
+|---|---|---|---|---|
+| EN | 48.1 → 48.7 | +0.6 [+0.1, +1.2] | 0.384 → 0.389 | 1 % → 2 % |
+| RU | 42.1 → 43.2 | +1.1 [+0.4, +1.8] | 0.291 → 0.298 | 7 % → 11 % |
+| KK | 35.9 → 38.6 | +2.7 [+1.6, +3.9] | 0.223 → 0.240 | 17 % → 28 % |
+| all | 42.0 → 43.5 | +1.4 [+1.0, +2.0] | 0.299 → 0.309 | 8 % → 14 % |
+
+A small but significant gain, largest in Kazakh, because long answers are no longer cut off; the cost is that an
+answer that does start looping now loops longer. Recommended setting for the final system: max 768 new tokens.
+
+**Hybrid router (medbot + Hopfield-QA)** — answer from stored, verified text when the question is already in the
+knowledge base (`scripts/hybrid_router.py`, `results/hybrid/`). Threshold chosen on dev so that ≤ 5 % of new
+questions are routed to memory. It does not work well: MedQuAD has 5–10 near-identical questions per disease
+("What is X?", "What are the symptoms of X?"), so question similarity cannot tell "the same question" from "the
+same disease, another aspect" (median confidence 0.85 for new questions vs 0.87 for paraphrased known ones). Only
+3–6 % of questions were routed; gain on paraphrases EN chrF 38.1 → 41.6, none on new questions. **Negative result.**
+
+**By question type** (test, chrF base → medbot_new): symptoms 26.1 → 55.1, treatment 27.3 → 53.6, frequency
+24.5 → 39.0, inheritance 31.6 → 42.8, genetic changes 34.0 → 38.2, "what is X" 32.3 → 34.2, causes 31.3 → 30.1.
+Fine-tuning helps most where MedQuAD answers follow a fixed template and least for free-form definitions and causes.
+
 ### 5.7 Larger ready-made models
 
 Ready-made models without fine-tuning, 2-bit GGUF via llama.cpp (`llama-server`, OpenAI-compatible API, same
