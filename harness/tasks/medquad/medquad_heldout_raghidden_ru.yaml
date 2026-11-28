@@ -1,0 +1,5 @@
+include: _medquad_base.yaml
+task: medquad_heldout_raghidden_ru
+tag: [medquad_heldout_raghidden]
+process_docs: !function utils.process_docs_heldout_raghidden_ru
+description: system

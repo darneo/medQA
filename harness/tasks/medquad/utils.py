@@ -25,27 +25,50 @@ def _complete(doc: dict) -> bool:
     return all(str(doc.get(c) or "").strip() for c in REQUIRED_COLUMNS)
 
 
-def _process(dataset, lang: str):
+def heldout_rows() -> dict[int, bool]:
+    """Отложенная выборка: строки, которых не было в обучении medbot_old (medqa.data.first_adapter_unseen,
+    10 %, seed 42), без 93 строк, чей вопрос дословно встречается в обучающих 90 %.
+
+    Значение — встречалась ли эта болезнь (focus) в обучении с вопросом другого типа (для анализа ошибок).
+    """
+    import re
+
+    import numpy as np
+
+    from medqa.data import load_dataset
+
+    df = load_dataset()
+    order = np.random.default_rng(SEED).permutation(len(df))
+    n = round(len(df) * 0.1)
+    test, train = order[:n], order[n:]
+    norm = lambda s: re.sub(r"\W+", " ", str(s).lower()).strip()  # noqa: E731
+    train_q = {norm(df.question[i]) for i in train}
+    train_a = {norm(df.answer[i]) for i in train}
+    train_focus = {df.focus[i] for i in train}
+    return {int(i): bool(df.focus[i] in train_focus) for i in test
+            if norm(df.question[i]) not in train_q and norm(df.answer[i]) not in train_a}
+
+
+def _process(dataset, lang: str, heldout: bool = False):
     """Полные строки, перемешанные с SEED: --limit N берёт одни и те же N случайных строк для всех моделей.
 
     row — номер строки в medqa.data.load_dataset() (тот же фильтр и порядок), по нему RAG прячет свой ответ.
+    heldout=True — только отложенная выборка (см. heldout_rows), поле seen_focus для анализа ошибок.
     """
-    dataset = dataset.filter(_complete).map(lambda d, i: {"row": i}, with_indices=True).shuffle(seed=SEED)
+    dataset = dataset.filter(_complete).map(lambda d, i: {"row": i}, with_indices=True)
+    if heldout:
+        rows = heldout_rows()
+        dataset = dataset.filter(lambda d: d["row"] in rows)
+    dataset = dataset.shuffle(seed=SEED)
     q, a = col("question", lang), col("answer", lang)
-    return dataset.map(lambda d: {"row": d["row"], "lang": lang, "q": str(d[q]).strip(), "ref": str(d[a]).strip()},
-                       remove_columns=dataset.column_names)
 
+    def fields(d):
+        out = {"row": d["row"], "lang": lang, "q": str(d[q]).strip(), "ref": str(d[a]).strip()}
+        if heldout:
+            out["seen_focus"] = rows[d["row"]]
+        return out
 
-def process_docs_en(dataset):
-    return _process(dataset, "en")
-
-
-def process_docs_ru(dataset):
-    return _process(dataset, "ru")
-
-
-def process_docs_kk(dataset):
-    return _process(dataset, "kk")
+    return dataset.map(fields, remove_columns=dataset.column_names)
 
 
 # ---------------------------------------------------------------- RAG: справка из датасета в системной подсказке
@@ -55,7 +78,7 @@ RAG_ROWS = int(os.environ.get("MEDQUAD_RAG_ROWS", "300"))  # поиск толь
 _RAG = None
 
 
-def _with_rag(dataset, lang: str, hide_own: bool):
+def _with_rag(dataset, lang: str, hide_own: bool, heldout: bool = False):
     """Добавляет поле system: подсказка medbot + k похожих пар из индекса RAG (medqa/rag.py).
 
     hide_own=True — свой ответ из справки убран (как для нового вопроса, которого нет в базе):
@@ -66,7 +89,8 @@ def _with_rag(dataset, lang: str, hide_own: bool):
     from medqa.prompts import build_messages
     from medqa.rag import RAGIndex, format_context
 
-    dataset = _process(dataset, lang).select(range(min(RAG_ROWS, len(dataset))))
+    dataset = _process(dataset, lang, heldout)
+    dataset = dataset.select(range(min(RAG_ROWS, len(dataset))))
     if _RAG is None:
         _RAG = RAGIndex(device="cpu")  # видеокарта занята моделью, которую оценивает harness
     hits = _RAG.search_many([(q, lang) for q in dataset["q"]], k=RAG_K + 1)
@@ -77,28 +101,18 @@ def _with_rag(dataset, lang: str, hide_own: bool):
     return dataset.add_column("system", systems)
 
 
-def process_docs_rag_en(dataset):
-    return _with_rag(dataset, "en", hide_own=False)
+# process_docs_<вариант>_<язык> для YAML: medquad[_heldout][_rag|_raghidden]_{en,ru,kk}
+def _make(lang: str, heldout: bool, rag: str | None):
+    if rag is None:
+        return lambda dataset: _process(dataset, lang, heldout)
+    return lambda dataset: _with_rag(dataset, lang, hide_own=(rag == "raghidden"), heldout=heldout)
 
 
-def process_docs_rag_ru(dataset):
-    return _with_rag(dataset, "ru", hide_own=False)
-
-
-def process_docs_rag_kk(dataset):
-    return _with_rag(dataset, "kk", hide_own=False)
-
-
-def process_docs_raghidden_en(dataset):
-    return _with_rag(dataset, "en", hide_own=True)
-
-
-def process_docs_raghidden_ru(dataset):
-    return _with_rag(dataset, "ru", hide_own=True)
-
-
-def process_docs_raghidden_kk(dataset):
-    return _with_rag(dataset, "kk", hide_own=True)
+for _lang in ("en", "ru", "kk"):
+    for _held in (False, True):
+        for _rag in (None, "rag", "raghidden"):
+            _name = "_".join(x for x in ("process_docs", "heldout" if _held else "", _rag or "", _lang) if x)
+            globals()[_name] = _make(_lang, _held, _rag)
 
 
 def clean(text: str, lang: str) -> str:

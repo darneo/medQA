@@ -12,6 +12,9 @@
   medquad_rag       — то же + справка RAG (3 похожие пары из датасета) в системной подсказке;
                       свой ответ может попасть в справку (вопрос есть в базе знаний).
   medquad_raghidden — то же, но свой ответ из справки убран (как для нового вопроса) — честный вариант.
+  heldout[_rag|_raghidden] — то же на ОТЛОЖЕННОЙ выборке: 1344 строки, которых medbot_old не видел при обучении
+                      (10 % датасета, seed 42, без дословных повторов вопросов из обучающей части).
+                      Главный честный тест: base против medbot_old. medbot_full эти строки видел.
   bench   — готовые англоязычные бенчмарки с выбором варианта ответа (acc): MedQA-USMLE (4 варианта),
             MedMCQA, PubMedQA и медицинские разделы MMLU. Их модели не видели — честное сравнение
             с базовой Qwen3-4B и с цифрами из статей.
@@ -44,11 +47,15 @@ SUITES = {
     "medquad": ["medquad_en", "medquad_ru", "medquad_kk"],
     "medquad_rag": ["medquad_rag_en", "medquad_rag_ru", "medquad_rag_kk"],
     "medquad_raghidden": ["medquad_raghidden_en", "medquad_raghidden_ru", "medquad_raghidden_kk"],
+    "heldout": ["medquad_heldout_en", "medquad_heldout_ru", "medquad_heldout_kk"],
+    "heldout_rag": ["medquad_heldout_rag_en", "medquad_heldout_rag_ru", "medquad_heldout_rag_kk"],
+    "heldout_raghidden": ["medquad_heldout_raghidden_en", "medquad_heldout_raghidden_ru",
+                          "medquad_heldout_raghidden_kk"],
     "bench": ["medqa_4options", "medmcqa", "pubmedqa", "mmlu_anatomy", "mmlu_clinical_knowledge",
               "mmlu_college_medicine", "mmlu_medical_genetics", "mmlu_professional_medicine"],
     "ru_kk": ["mmedbench_ru", "kazmmlu_medicine_ru", "kazmmlu_biology_ru", "kazmmlu_biology_kk"],
 }
-GENERATIVE = ("medquad", "medquad_rag", "medquad_raghidden")
+GENERATIVE = ("medquad", "medquad_rag", "medquad_raghidden", "heldout", "heldout_rag", "heldout_raghidden")
 
 
 def command(model: str, suite: str, limit: int | None, batch_size: str, device: str,

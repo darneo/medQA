@@ -1,0 +1,5 @@
+include: _medquad_base.yaml
+task: medquad_heldout_rag_en
+tag: [medquad_heldout_rag]
+process_docs: !function utils.process_docs_heldout_rag_en
+description: system

@@ -81,8 +81,11 @@ def generative_table(runs: dict, semantic: bool) -> pd.DataFrame:
         if not task.startswith("medquad"):
             continue
         variant, lang = task.rsplit("_", 1)
-        row = {"модель": model, "вариант": {"medquad": "без RAG", "medquad_rag": "RAG",
-                                             "medquad_raghidden": "RAG, свой ответ скрыт"}[variant],
+        split = "test (heldout)" if "_heldout" in variant else "весь датасет"
+        variant = variant.replace("_heldout", "")
+        row = {"выборка": split, "модель": model,
+               "вариант": {"medquad": "без RAG", "medquad_rag": "RAG",
+                           "medquad_raghidden": "RAG, свой ответ скрыт"}[variant],
                "язык": lang, "n": r["n"]}
         for m in GEN_METRICS:
             if f"{m},none" in r["res"]:
@@ -97,7 +100,7 @@ def generative_table(runs: dict, semantic: bool) -> pd.DataFrame:
         return df
     df["_m"] = df["модель"].map({m: i for i, m in enumerate(MODEL_ORDER)}).fillna(99)
     df["_l"] = df["язык"].map({"en": 0, "ru": 1, "kk": 2})
-    return df.sort_values(["вариант", "_m", "_l"]).drop(columns=["_m", "_l"])
+    return df.sort_values(["выборка", "вариант", "_m", "_l"], ascending=[False, True, True, True]).drop(columns=["_m", "_l"])
 
 
 def mc_table(runs: dict) -> pd.DataFrame:
