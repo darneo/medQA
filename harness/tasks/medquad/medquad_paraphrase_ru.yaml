@@ -1,0 +1,6 @@
+include: _medquad_base.yaml
+task: medquad_paraphrase_ru
+tag: [medquad_paraphrase]
+# те же 20 строк отложенной выборки, вопрос переписан другими словами (data/paraphrased_questions.json)
+process_docs: !function utils.process_docs_paraphrase_ru
+description: "Ты осторожный медицинский ассистент. Отвечай по-русски и давай общую информацию. При личных симптомах или выборе лечения советуй обратиться к врачу."

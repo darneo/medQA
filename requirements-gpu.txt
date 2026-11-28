@@ -9,4 +9,4 @@ datasets
 accelerate
 sentencepiece
 safetensors
-lm-eval[hf]   # lm-evaluation-harness: scripts/run_harness.py
+lm-eval[hf,api]   # lm-evaluation-harness: scripts/run_harness.py (api — Saluki, LingSante через llama-server)

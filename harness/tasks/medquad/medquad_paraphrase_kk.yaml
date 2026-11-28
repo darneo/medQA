@@ -1,0 +1,6 @@
+include: _medquad_base.yaml
+task: medquad_paraphrase_kk
+tag: [medquad_paraphrase]
+# те же 20 строк отложенной выборки, вопрос переписан другими словами (data/paraphrased_questions.json)
+process_docs: !function utils.process_docs_paraphrase_kk
+description: "Сен мұқият медициналық көмекшісің. Қазақ тілінде жалпы ақпарат бер. Жеке белгілер немесе ем таңдау үшін дәрігерге жүгінуге кеңес бер."

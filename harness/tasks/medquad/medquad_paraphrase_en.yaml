@@ -1,0 +1,6 @@
+include: _medquad_base.yaml
+task: medquad_paraphrase_en
+tag: [medquad_paraphrase]
+# те же 20 строк отложенной выборки, вопрос переписан другими словами (data/paraphrased_questions.json)
+process_docs: !function utils.process_docs_paraphrase_en
+description: "You are a careful medical assistant. Answer in English with general information. Encourage consulting a qualified clinician for personal diagnosis or treatment."

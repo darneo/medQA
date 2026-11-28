@@ -26,7 +26,7 @@ OUT = ROOT / "results" / "harness"
 CACHE = OUT / "semantic_cache.json"
 MODEL_ORDER = ["base", "medbot_old", "medbot_full"]
 VARIANTS = {"medquad": "no RAG", "medquad_rag": "RAG (own answer may be retrieved)",
-            "medquad_raghidden": "RAG, own answer hidden"}
+            "medquad_raghidden": "RAG, own answer hidden", "medquad_paraphrase": "paraphrased question"}
 GEN_METRICS = {"chrf": "chrF", "rougeL": "ROUGE-L", "semantic": "semantic (bge-m3)", "lang_ok": "right language",
                "repeats": "repetition", "advises_doctor": "advises doctor", "answer_words": "answer words"}
 BOOT = 2000
@@ -95,7 +95,7 @@ def per_sample(runs: dict, semantic: bool) -> pd.DataFrame:
         refs = [s["doc"]["ref"] for s in samples]
         sem = semantic_scores(list(zip(answers, refs))) if semantic else [np.nan] * len(samples)
         for s, a, ref, sm in zip(samples, answers, refs, sem):
-            rows.append({"model": model, "split": "test" if "_heldout" in variant else "all",
+            rows.append({"model": model, "split": "test" if ("_heldout" in variant or "paraphrase" in variant) else "all",
                          "variant": variant.replace("_heldout", ""), "lang": lang, "row": s["doc"].get("row", s["doc_id"]),
                          "seen_focus": s["doc"].get("seen_focus"), "chrf_s": sacrebleu.sentence_chrf(a, [ref]).score,
                          "rougeL": s["rougeL"], "semantic": sm, "answer": a, "ref": ref, "q": s["doc"]["q"]})
@@ -108,7 +108,7 @@ def generative_table(runs: dict, samples: pd.DataFrame) -> pd.DataFrame:
         if not task.startswith("medquad"):
             continue
         variant, lang = task.rsplit("_", 1)
-        split = "test" if "_heldout" in variant else "all"
+        split = "test" if ("_heldout" in variant or "paraphrase" in variant) else "all"
         variant = variant.replace("_heldout", "")
         row = {"split": split, "model": model, "variant": VARIANTS[variant], "lang": lang, "n": r["n"]}
         for m in GEN_METRICS:
@@ -139,7 +139,7 @@ def paired_ci(samples: pd.DataFrame) -> pd.DataFrame:
     rng = np.random.default_rng(0)
     rows = []
     for (model, variant), sys_df in test.groupby(["model", "variant"]):
-        if model == "base" and variant == "medquad":
+        if (model == "base" and variant == "medquad") or variant == "medquad_paraphrase":
             continue
         for lang in ["en", "ru", "kk", "all"]:
             a = sys_df if lang == "all" else sys_df[sys_df.lang == lang]
@@ -158,6 +158,24 @@ def paired_ci(samples: pd.DataFrame) -> pd.DataFrame:
                 fmt = "{:+.1f} [{:+.1f}, {:+.1f}]" if metric == "chrf_s" else "{:+.3f} [{:+.3f}, {:+.3f}]"
                 row[name] = fmt.format(d.mean(), lo, hi)
             rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def paraphrase_drop(samples: pd.DataFrame) -> pd.DataFrame:
+    """Same rows, original vs paraphrased question, per model: does the score hold when the wording changes?"""
+    test = samples[samples.split == "test"]
+    para = test[test.variant == "medquad_paraphrase"]
+    rows = []
+    for model, p in para.groupby("model", sort=False):
+        orig = test[(test.model == model) & (test.variant == "medquad")]
+        m = p.merge(orig, on=["lang", "row"], suffixes=("_p", "_o"))
+        if m.empty:
+            continue
+        for lang in ["en", "ru", "kk", "all"]:
+            g = m if lang == "all" else m[m.lang == lang]
+            rows.append({"model": model, "lang": lang, "n": len(g),
+                         "chrF original → paraphrase": f"{g.chrf_s_o.mean():.1f} → {g.chrf_s_p.mean():.1f}",
+                         "semantic original → paraphrase": f"{g.semantic_o.mean():.3f} → {g.semantic_p.mean():.3f}"})
     return pd.DataFrame(rows)
 
 
@@ -228,7 +246,13 @@ def main() -> None:
         text += ["## Held-out test: difference vs base (same questions)", "",
                  f"Mean of per-question differences (sentence chrF, ROUGE-L, semantic), 95 % bootstrap CI "
                  f"({BOOT} resamples). A CI that excludes 0 is a significant difference.", "", to_markdown(ci), ""]
-    sb = seen_breakdown(samples) if not samples.empty else pd.DataFrame()
+    pd_ = paraphrase_drop(samples) if not samples.empty else pd.DataFrame()
+    if not pd_.empty:
+        text += ["## Robustness to rewording", "",
+                 "20 held-out questions × 3 languages rewritten by hand in different words (`data/paraphrased_questions.json`; "
+                 "treatment / prevention asked as 'what is the best ...'). Same reference answer. A model that only "
+                 "memorised the wording drops sharply; mean sentence chrF and semantic similarity.", "", to_markdown(pd_), ""]
+    sb = seen_breakdown(samples[samples.variant != "medquad_paraphrase"]) if not samples.empty else pd.DataFrame()
     if not sb.empty:
         text += ["## Held-out test by topic overlap", "",
                  "Test rows whose disease appeared in training with another question type vs unseen diseases.", "",

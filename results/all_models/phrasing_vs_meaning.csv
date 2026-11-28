@@ -1,0 +1,7 @@
+model,chrF,ROUGE-L,semantic,answer words,n
+Hopfield (own answer hidden),26.192,0.116,0.718,163.292,24
+medbot_old (QLoRA 4B),38.312,0.248,0.796,102.833,24
+medbot_full (QLoRA 4B),37.536,0.24,0.787,111.75,24
+Saluki 27B + RAG,31.09,0.212,0.844,52.125,24
+LingSante 124B-MoE,21.756,0.085,0.767,86.542,24
+LingSante + RAG,31.244,0.181,0.82,58.917,24

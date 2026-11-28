@@ -22,8 +22,8 @@
             «Биология» (ru, kk). Данные сначала скачать: python scripts/get_benchmarks.py
 
 Модели (--models) запускаются по очереди, чтобы хватило 8 ГБ видеопамяти. Результаты: results/harness/<модель>/.
-Saluki и LingSante (GGUF через llama-server) сюда не входят: harness их тоже умеет (--model local-completions),
-но для них нужен запущенный сервер — это отдельный шаг.
+Saluki и LingSante (GGUF): скрипт сам запускает llama-server (medqa/saluki.py) и оценивает модель через его
+OpenAI-совместимый API (--model local-chat-completions); подходят только задачи с генерацией.
 """
 
 from __future__ import annotations
@@ -42,6 +42,9 @@ MODELS = {
     "base": {"pretrained": BASE},
     "medbot_old": {"pretrained": BASE, "peft": "models/medbot_qwen3_4b/lora_adapter"},
     "medbot_full": {"pretrained": BASE, "peft": "models/medbot_train_full/lora_adapter"},
+    # готовые модели GGUF через llama-server (OpenAI-совместимый API); только задачи с генерацией
+    "saluki": {"gguf": "saluki"},
+    "lingsante": {"gguf": "lingsante"},
 }
 SUITES = {
     "medquad": ["medquad_en", "medquad_ru", "medquad_kk"],
@@ -51,11 +54,40 @@ SUITES = {
     "heldout_rag": ["medquad_heldout_rag_en", "medquad_heldout_rag_ru", "medquad_heldout_rag_kk"],
     "heldout_raghidden": ["medquad_heldout_raghidden_en", "medquad_heldout_raghidden_ru",
                           "medquad_heldout_raghidden_kk"],
+    "paraphrase": ["medquad_paraphrase_en", "medquad_paraphrase_ru", "medquad_paraphrase_kk"],
     "bench": ["medqa_4options", "medmcqa", "pubmedqa", "mmlu_anatomy", "mmlu_clinical_knowledge",
               "mmlu_college_medicine", "mmlu_medical_genetics", "mmlu_professional_medicine"],
     "ru_kk": ["mmedbench_ru", "kazmmlu_medicine_ru", "kazmmlu_biology_ru", "kazmmlu_biology_kk"],
 }
-GENERATIVE = ("medquad", "medquad_rag", "medquad_raghidden", "heldout", "heldout_rag", "heldout_raghidden")
+GENERATIVE = ("medquad", "medquad_rag", "medquad_raghidden", "heldout", "heldout_rag", "heldout_raghidden", "paraphrase")
+
+
+def gguf_server(name: str):
+    """llama-server для Saluki или LingSante — те же настройки, что в scripts/test_all_models.py."""
+    sys.path.insert(0, str(ROOT))
+    from medqa.saluki import SalukiServer, ServerConfig
+
+    if name == "lingsante":
+        from medqa.config import LINGSANTE_MODEL
+
+        # эксперты MoE в ОЗУ, остальные слои на видеокарте
+        config = ServerConfig(model=LINGSANTE_MODEL, port=8081, ctx=8192, parallel=1, gpu_layers=99,
+                              extra=["--cpu-moe", "--no-op-offload"])
+    else:
+        config = ServerConfig(ctx=8192, parallel=2)
+    return SalukiServer(config), config.parallel
+
+
+def gguf_command(model: str, suite: str, limit: int | None, url: str, parallel: int) -> list[str]:
+    if suite not in GENERATIVE:
+        raise SystemExit(f"{model}: через API доступны только задачи с генерацией, не {suite}")
+    args = {"model": model, "base_url": f"{url}/v1/chat/completions", "num_concurrent": parallel,
+            "max_retries": 3, "timeout": 900, "tokenized_requests": False}
+    cmd = [sys.executable, "-m", "lm_eval", "run", "--model", "local-chat-completions",
+           "--model_args", ",".join(f"{k}={v}" for k, v in args.items()),
+           "--tasks", ",".join(SUITES[suite]), "--include_path", str(TASKS_DIR), "--apply_chat_template",
+           "--output_path", str(OUT / model), "--seed", "42", "--log_samples"]
+    return cmd + (["--limit", str(limit)] if limit else [])
 
 
 def command(model: str, suite: str, limit: int | None, batch_size: str, device: str,
@@ -91,6 +123,14 @@ def main() -> None:
     a = p.parse_args()
 
     for model in a.models:
+        if "gguf" in MODELS[model]:
+            server, parallel = gguf_server(MODELS[model]["gguf"])
+            cmd = gguf_command(model, a.suite, a.limit or None, server.url, parallel)
+            print(f"\n=== {model} / {a.suite} ===\n" + subprocess.list2cmdline(cmd), flush=True)
+            if not a.dry_run:
+                with server:  # запускает llama-server и останавливает его после прогона
+                    subprocess.run(cmd, cwd=ROOT, check=True)
+            continue
         cmd = command(model, a.suite, a.limit or None, a.batch_size, a.device, a.num_fewshot)
         print(f"\n=== {model} / {a.suite} ===\n" + subprocess.list2cmdline(cmd), flush=True)
         if not a.dry_run:

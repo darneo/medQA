@@ -132,3 +132,24 @@ def process_results(doc: dict, results: list[str]) -> dict:
         "advises_doctor": float(advises_help(answer)),
         "answer_words": float(len(words)),
     }
+
+
+# ---------------------------------------------------------------- перефразированные вопросы
+
+PARAPHRASES = ROOT / "data" / "paraphrased_questions.json"
+
+
+def _paraphrase(dataset, lang: str):
+    """Те же строки отложенной выборки, но вопрос переписан другими словами (data/paraphrased_questions.json).
+
+    Эталон — ответ той же строки датасета. q_orig — исходная формулировка (для сравнения).
+    """
+    import json
+
+    items = {x["row"]: x for x in json.loads(PARAPHRASES.read_text(encoding="utf-8"))["items"]}
+    dataset = _process(dataset, lang, heldout=True).filter(lambda d: d["row"] in items)
+    return dataset.map(lambda d: {"q": items[d["row"]][lang], "q_orig": d["q"], "kind": items[d["row"]]["kind"]})
+
+
+for _lang in ("en", "ru", "kk"):
+    globals()[f"process_docs_paraphrase_{_lang}"] = (lambda l: lambda dataset: _paraphrase(dataset, l))(_lang)
