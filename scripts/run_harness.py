@@ -91,7 +91,7 @@ def gguf_command(model: str, suite: str, limit: int | None, url: str, parallel: 
 
 
 def command(model: str, suite: str, limit: int | None, batch_size: str, device: str,
-            num_fewshot: int | None = None) -> list[str]:
+            num_fewshot: int | None = None, gen_kwargs: str | None = None, tag: str = "") -> list[str]:
     args = {**MODELS[model], "dtype": "bfloat16"}
     if "peft" in args:
         args["tokenizer"] = args["peft"]  # чат-шаблон и токенизатор сохранены вместе с адаптером
@@ -101,9 +101,11 @@ def command(model: str, suite: str, limit: int | None, batch_size: str, device: 
            "--model", "hf", "--model_args", ",".join(f"{k}={v}" for k, v in args.items()),
            "--tasks", ",".join(SUITES[suite]), "--include_path", str(TASKS_DIR),
            "--device", device, "--batch_size", batch_size,
-           "--output_path", str(OUT / model), "--seed", "42", "--log_samples"]  # ответы — в samples_*.jsonl
+           "--output_path", str(OUT / f"{model}{tag}"), "--seed", "42", "--log_samples"]  # ответы — в samples_*.jsonl
     if suite in GENERATIVE:
         cmd += ["--apply_chat_template"]
+    if gen_kwargs:
+        cmd += ["--gen_kwargs", gen_kwargs]
     if limit:
         cmd += ["--limit", str(limit)]
     if num_fewshot is not None:
@@ -119,6 +121,9 @@ def main() -> None:
     p.add_argument("--batch-size", default="1", help="для bench можно auto")
     p.add_argument("--device", default="cuda:0")
     p.add_argument("--num-fewshot", type=int, default=None, help="примеры с ответами в промпте (для bench / ru_kk)")
+    p.add_argument("--gen-kwargs", default=None,
+                   help="переопределить генерацию, напр. no_repeat_ngram_size=4 или repetition_penalty=1.3")
+    p.add_argument("--tag", default="", help="суффикс папки результатов, напр. _norep4 (чтобы не смешивать с обычным прогоном)")
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args()
 
@@ -131,7 +136,7 @@ def main() -> None:
                 with server:  # запускает llama-server и останавливает его после прогона
                     subprocess.run(cmd, cwd=ROOT, check=True)
             continue
-        cmd = command(model, a.suite, a.limit or None, a.batch_size, a.device, a.num_fewshot)
+        cmd = command(model, a.suite, a.limit or None, a.batch_size, a.device, a.num_fewshot, a.gen_kwargs, a.tag)
         print(f"\n=== {model} / {a.suite} ===\n" + subprocess.list2cmdline(cmd), flush=True)
         if not a.dry_run:
             subprocess.run(cmd, cwd=ROOT, check=True)
