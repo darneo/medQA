@@ -235,6 +235,10 @@ only gain is a larger length budget. The winner was then run **once** on the tes
 A small but significant gain, largest in Kazakh, because long answers are no longer cut off; the cost is that an
 answer that does start looping now loops longer. Recommended setting for the final system: max 768 new tokens.
 
+The baseline does not profit from the longer budget (base chrF 29.4 → 29.8), so with the same 768-token setting the
+gap grows: **medbot_new − base = +13.7 chrF [+11.7, +15.7]** over all 450 test questions (EN +13.0, RU +11.6,
+KK +16.6), ROUGE-L 0.099 → 0.309; answers with loops: base 22 % (KK 67 %), medbot_new 14 % (KK 28 %).
+
 **Hybrid router (medbot + Hopfield-QA)** — answer from stored, verified text when the question is already in the
 knowledge base (`scripts/hybrid_router.py`, `results/hybrid/`). Threshold chosen on dev so that ≤ 5 % of new
 questions are routed to memory. It does not work well: MedQuAD has 5–10 near-identical questions per disease

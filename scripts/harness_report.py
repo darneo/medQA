@@ -24,7 +24,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "results" / "harness"
 CACHE = OUT / "semantic_cache.json"
-MODEL_ORDER = ["base", "base_norep4", "medbot_old", "medbot_full", "medbot_full_norep4", "saluki", "lingsante"]
+MODEL_ORDER = ["base", "base_norep4", "medbot_old", "medbot_full", "medbot_full_norep4", "base_len768", "medbot_full_len768", "saluki", "lingsante"]
 # medbot_full в harness = «medbot новый» в README и test_all_models.py (адаптер models/medbot_train_full)
 DISPLAY = {"medbot_full": "medbot_new"}
 VARIANTS = {"medquad": "no RAG", "medquad_rag": "RAG (own answer may be retrieved)",
