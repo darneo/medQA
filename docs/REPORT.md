@@ -210,7 +210,21 @@ with RAG-style prompts is a next step.
 
 ### 5.7 Larger ready-made models
 
-_Saluki 27B and LingSante 124B-MoE (GGUF via llama.cpp) on the same test questions: running._
+Ready-made models without fine-tuning, 2-bit GGUF via llama.cpp (`llama-server`, OpenAI-compatible API, same
+prompt and metrics through lm-eval `local-chat-completions`), on the same 50 test questions per language:
+
+| model | params | chrF EN / RU / KK | ROUGE-L EN / RU / KK | semantic EN / RU / KK | repetition KK | advises doctor RU |
+|---|---|---|---|---|---|---|
+| base (Qwen3-4B) | 4 B | 36.3 / 32.3 / 22.7 | 0.152 / 0.100 / 0.066 | 0.815 / 0.793 / 0.721 | 29 % | 49 % |
+| Saluki 27B | 27 B | 36.1 / 33.7 / 24.4 | 0.151 / 0.100 / 0.074 | 0.819 / 0.805 / 0.760 | 24 % | 58 % |
+| LingSante-3.1-air (MoE) | 124 B (5.5 B active) | 33.4 / 31.5 / 25.2 | 0.161 / 0.097 / 0.077 | 0.835 / 0.795 / 0.751 | 5 % | 84 % |
+| **medbot_new** (QLoRA 4B) | 4 B | **48.9 / 42.5 / 36.1** | **0.379 / 0.299 / 0.222** | **0.871 / 0.857 / 0.831** | 9 % | 31 % |
+
+The fine-tuned 4B model is far closer to the references than models 7–30× larger: domain and language adaptation
+matter more than size for this task. The large models are not "wrong" — LingSante has the highest semantic similarity
+among the non-fine-tuned models, the fewest loops and advises a doctor most often — but they answer in their own
+style and length, which the overlap metrics penalise (see §6). Saluki answers often hit the 512-token limit.
+Saluki / LingSante numbers use the first 50 test questions per language (generation is 10–30× slower on 8 GB VRAM).
 
 ## 6. Error analysis
 

@@ -36,3 +36,6 @@ models/medbot_train_full/lora_adapter/adapter_model.safetensors
 
 # медицинские бенчмарки ru / kk (CC BY-NC) — скачиваются: python scripts/get_benchmarks.py
 data/benchmarks/
+
+# кэш эмбеддингов bge-m3 для отчёта harness — пересобирается scripts/harness_report.py
+results/harness/semantic_cache.json

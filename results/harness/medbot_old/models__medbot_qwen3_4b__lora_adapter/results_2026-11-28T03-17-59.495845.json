@@ -1,0 +1,348 @@
+{
+  "results": {
+    "mmedbench_ru": {
+      "name": "mmedbench_ru",
+      "alias": "mmedbench_ru",
+      "sample_len": 256,
+      "acc,none": 0.75390625,
+      "acc_stderr,none": 0.026973597563786113
+    },
+    "kazmmlu_medicine_ru": {
+      "name": "kazmmlu_medicine_ru",
+      "alias": "kazmmlu_medicine_ru",
+      "sample_len": 297,
+      "acc,none": 0.4074074074074074,
+      "acc_stderr,none": 0.028559244479854074
+    },
+    "kazmmlu_biology_ru": {
+      "name": "kazmmlu_biology_ru",
+      "alias": "kazmmlu_biology_ru",
+      "sample_len": 1065,
+      "acc,none": 0.7295774647887324,
+      "acc_stderr,none": 0.013617153450799273
+    },
+    "kazmmlu_biology_kk": {
+      "name": "kazmmlu_biology_kk",
+      "alias": "kazmmlu_biology_kk",
+      "sample_len": 1022,
+      "acc,none": 0.4882583170254403,
+      "acc_stderr,none": 0.015643623330666507
+    }
+  },
+  "group_subtasks": {},
+  "configs": {
+    "kazmmlu_biology_kk": {
+      "task": "kazmmlu_biology_kk",
+      "dataset_path": "json",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/benchmarks/kazmmlu_biology_kk/test.jsonl",
+          "dev": "data/benchmarks/kazmmlu_biology_kk/dev.jsonl"
+        }
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "def doc_to_text_kk(doc: dict) -> str:\n    return _text(doc, \"kk\")\n",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": "def doc_to_choice(doc: dict) -> list[str]:\n    return list(LETTERS[:len(doc[\"choices\"])])\n",
+      "description": "Төменде биология бойынша жауап нұсқалары бар сұрақ берілген.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": "dev",
+        "process_docs": null,
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "<function doc_to_text_kk at 0x000001A317317CE0>",
+        "doc_to_choice": "<function doc_to_choice at 0x000001A317317C40>",
+        "doc_to_target": "answer",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": " "
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+        "peft": "models/medbot_qwen3_4b/lora_adapter",
+        "dtype": "bfloat16",
+        "tokenizer": "models/medbot_qwen3_4b/lora_adapter",
+        "enable_thinking": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\ru_kk_med\\kazmmlu_biology_kk.yaml"
+      }
+    },
+    "kazmmlu_biology_ru": {
+      "task": "kazmmlu_biology_ru",
+      "dataset_path": "json",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/benchmarks/kazmmlu_biology_ru/test.jsonl",
+          "dev": "data/benchmarks/kazmmlu_biology_ru/dev.jsonl"
+        }
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "def doc_to_text_ru(doc: dict) -> str:\n    return _text(doc, \"ru\")\n",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": "def doc_to_choice(doc: dict) -> list[str]:\n    return list(LETTERS[:len(doc[\"choices\"])])\n",
+      "description": "Ниже вопрос с вариантами ответа по биологии.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": "dev",
+        "process_docs": null,
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "<function doc_to_text_ru at 0x000001A317317D80>",
+        "doc_to_choice": "<function doc_to_choice at 0x000001A317317C40>",
+        "doc_to_target": "answer",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": " "
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+        "peft": "models/medbot_qwen3_4b/lora_adapter",
+        "dtype": "bfloat16",
+        "tokenizer": "models/medbot_qwen3_4b/lora_adapter",
+        "enable_thinking": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\ru_kk_med\\kazmmlu_biology_ru.yaml"
+      }
+    },
+    "kazmmlu_medicine_ru": {
+      "task": "kazmmlu_medicine_ru",
+      "dataset_path": "json",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/benchmarks/kazmmlu_medicine_ru/test.jsonl",
+          "dev": "data/benchmarks/kazmmlu_medicine_ru/dev.jsonl"
+        }
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "def doc_to_text_ru(doc: dict) -> str:\n    return _text(doc, \"ru\")\n",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": "def doc_to_choice(doc: dict) -> list[str]:\n    return list(LETTERS[:len(doc[\"choices\"])])\n",
+      "description": "Ниже вопрос с вариантами ответа по медицине.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": "dev",
+        "process_docs": null,
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "<function doc_to_text_ru at 0x000001A317317D80>",
+        "doc_to_choice": "<function doc_to_choice at 0x000001A317317C40>",
+        "doc_to_target": "answer",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": " "
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+        "peft": "models/medbot_qwen3_4b/lora_adapter",
+        "dtype": "bfloat16",
+        "tokenizer": "models/medbot_qwen3_4b/lora_adapter",
+        "enable_thinking": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\ru_kk_med\\kazmmlu_medicine_ru.yaml"
+      }
+    },
+    "mmedbench_ru": {
+      "task": "mmedbench_ru",
+      "dataset_path": "json",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/benchmarks/mmedbench_ru/test.jsonl",
+          "dev": "data/benchmarks/mmedbench_ru/dev.jsonl"
+        }
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "def doc_to_text_ru(doc: dict) -> str:\n    return _text(doc, \"ru\")\n",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": "def doc_to_choice(doc: dict) -> list[str]:\n    return list(LETTERS[:len(doc[\"choices\"])])\n",
+      "description": "Ниже вопрос по медицине. Ответь да или нет, выбрав букву.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": "dev",
+        "process_docs": null,
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "<function doc_to_text_ru at 0x000001A317317D80>",
+        "doc_to_choice": "<function doc_to_choice at 0x000001A317317C40>",
+        "doc_to_target": "answer",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": " "
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+        "peft": "models/medbot_qwen3_4b/lora_adapter",
+        "dtype": "bfloat16",
+        "tokenizer": "models/medbot_qwen3_4b/lora_adapter",
+        "enable_thinking": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\ru_kk_med\\mmedbench_ru.yaml"
+      }
+    }
+  },
+  "versions": {
+    "kazmmlu_biology_kk": 1.0,
+    "kazmmlu_biology_ru": 1.0,
+    "kazmmlu_medicine_ru": 1.0,
+    "mmedbench_ru": 1.0
+  },
+  "n-shot": {
+    "kazmmlu_biology_kk": 0,
+    "kazmmlu_biology_ru": 0,
+    "kazmmlu_medicine_ru": 0,
+    "mmedbench_ru": 0
+  },
+  "higher_is_better": {
+    "kazmmlu_biology_kk": {
+      "acc": true
+    },
+    "kazmmlu_biology_ru": {
+      "acc": true
+    },
+    "kazmmlu_medicine_ru": {
+      "acc": true
+    },
+    "mmedbench_ru": {
+      "acc": true
+    }
+  },
+  "n-samples": {
+    "mmedbench_ru": {
+      "original": 256,
+      "effective": 256
+    },
+    "kazmmlu_medicine_ru": {
+      "original": 297,
+      "effective": 297
+    },
+    "kazmmlu_biology_ru": {
+      "original": 1065,
+      "effective": 1065
+    },
+    "kazmmlu_biology_kk": {
+      "original": 1022,
+      "effective": 1022
+    }
+  },
+  "config": {
+    "model": "hf",
+    "model_args": {
+      "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+      "peft": "models/medbot_qwen3_4b/lora_adapter",
+      "dtype": "bfloat16",
+      "tokenizer": "models/medbot_qwen3_4b/lora_adapter",
+      "enable_thinking": false
+    },
+    "model_num_parameters": 4054814720,
+    "model_dtype": "torch.bfloat16",
+    "model_revision": "main",
+    "model_sha": "bbe12ebf9362b3bcbf44e826e4c98910f2c02e72",
+    "peft_sha": "",
+    "batch_size": "16",
+    "batch_sizes": [],
+    "device": "cuda:0",
+    "use_cache": null,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "gen_kwargs": {},
+    "random_seed": 42,
+    "numpy_seed": 42,
+    "torch_seed": 42,
+    "fewshot_seed": 42
+  },
+  "git_hash": "4d47501",
+  "date": 1795860423.010117,
+  "pretty_env_info": "PyTorch version: 2.11.0+cu128\nIs debug build: False\nCUDA used to build PyTorch: 12.8\nROCM used to build PyTorch: N/A\n\nOS: Microsoft Windows 11 Pro (10.0.26300 64-bit)\nGCC version: (tdm64-1) 4.9.2\r\nClang version: Could not collect\nCMake version: Could not collect\nLibc version: N/A\n\nPython version: 3.11.18 (main, Oct 26 2026, 14:08:50) [MSC v.1944 64 bit (AMD64)] (64-bit runtime)\nPython platform: Windows-10-10.0.26300-SP0\nIs CUDA available: True\nCUDA runtime version: Could not collect\nCUDA_MODULE_LOADING set to: \nGPU models and configuration: GPU 0: NVIDIA GeForce RTX 5060\nNvidia driver version: Could not collect\ncuDNN version: Could not collect\nIs XPU available: False\nHIP runtime version: N/A\nMIOpen runtime version: N/A\nIs XNNPACK available: True\nCaching allocator config: N/A\n\nCPU:\nName: Intel(R) Core(TM) Ultra 7 265\nManufacturer: GenuineIntel\nFamily: 774\nArchitecture: 9\nProcessorType: 3\nDeviceID: CPU0\nCurrentClockSpeed: 2400\nMaxClockSpeed: 2400\nL2CacheSize: 36864\nL2CacheSpeed: None\nRevision: None\n\nVersions of relevant libraries:\n[pip3] Could not collect\n[conda] Could not collect",
+  "transformers_version": "5.17.0",
+  "lm_eval_version": "0.4.13",
+  "upper_git_hash": null,
+  "tokenizer_pad_token": [
+    "<|vision_pad|>",
+    "151654"
+  ],
+  "tokenizer_eos_token": [
+    "<|im_end|>",
+    "151645"
+  ],
+  "tokenizer_bos_token": [
+    null,
+    "None"
+  ],
+  "eot_token_id": 151645,
+  "max_length": 40960,
+  "task_hashes": {
+    "mmedbench_ru": "b851e30a040596892510231e5ab681bfe8a1e9ac182a4880cab2383a01fe3c88",
+    "kazmmlu_medicine_ru": "3de398ab7074644f592ba62d634d61bbc771f316d710d8e91a59fbfb434580bb",
+    "kazmmlu_biology_ru": "de1a35540ed7839bc1c7f8cd4f1e4d8cbf92edf3491e55e3e38c09413ec9e11a",
+    "kazmmlu_biology_kk": "619b99d7a63304655a0afcc1527672bd381d96b19ad805393c4dba0a624db8dc"
+  },
+  "model_source": "hf",
+  "model_name": "models/medbot_qwen3_4b/lora_adapter",
+  "model_name_sanitized": "models__medbot_qwen3_4b__lora_adapter",
+  "system_instruction": null,
+  "system_instruction_sha": null,
+  "fewshot_as_multiturn": null,
+  "chat_template": null,
+  "chat_template_sha": null,
+  "total_evaluation_time_seconds": "792.4806376999477"
+}

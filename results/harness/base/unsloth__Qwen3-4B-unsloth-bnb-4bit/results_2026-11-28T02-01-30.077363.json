@@ -1,0 +1,405 @@
+{
+  "results": {
+    "medquad_en": {
+      "name": "medquad_en",
+      "alias": "medquad_en",
+      "sample_len": 100,
+      "rougeL,none": 0.1479808206571093,
+      "rougeL_stderr,none": 0.0037651401686350076,
+      "chrf,none": 31.002699243757032,
+      "chrf_stderr,none": 2.1612884797025953,
+      "lang_ok,none": 1.0,
+      "lang_ok_stderr,none": 0.0,
+      "repeats,none": 0.0075032871433725525,
+      "repeats_stderr,none": 0.0010842597953272795,
+      "advises_doctor,none": 0.19,
+      "advises_doctor_stderr,none": 0.039427724440366234,
+      "answer_words,none": 254.99,
+      "answer_words_stderr,none": 6.0964055480307895
+    },
+    "medquad_ru": {
+      "name": "medquad_ru",
+      "alias": "medquad_ru",
+      "sample_len": 100,
+      "rougeL,none": 0.09709076572826604,
+      "rougeL_stderr,none": 0.003286140905583881,
+      "chrf,none": 24.682133908661044,
+      "chrf_stderr,none": 2.2991680575020914,
+      "lang_ok,none": 1.0,
+      "lang_ok_stderr,none": 0.0,
+      "repeats,none": 0.006835290127062469,
+      "repeats_stderr,none": 0.0015864994411391806,
+      "advises_doctor,none": 0.43,
+      "advises_doctor_stderr,none": 0.049756985195624284,
+      "answer_words,none": 155.95,
+      "answer_words_stderr,none": 2.1056621598236345
+    },
+    "medquad_kk": {
+      "name": "medquad_kk",
+      "alias": "medquad_kk",
+      "sample_len": 100,
+      "rougeL,none": 0.06104522007765246,
+      "rougeL_stderr,none": 0.0034155603654728362,
+      "chrf,none": 14.617546865386519,
+      "chrf_stderr,none": 1.550399027731167,
+      "lang_ok,none": 1.0,
+      "lang_ok_stderr,none": 0.0,
+      "repeats,none": 0.31462935270547265,
+      "repeats_stderr,none": 0.027598135052808614,
+      "advises_doctor,none": 0.15,
+      "advises_doctor_stderr,none": 0.03588702812826371,
+      "answer_words,none": 94.55,
+      "answer_words_stderr,none": 1.437195290498234
+    }
+  },
+  "group_subtasks": {},
+  "configs": {
+    "medquad_en": {
+      "task": "medquad_en",
+      "dataset_path": "parquet",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/final/qa_en_ru_kk.parquet"
+        }
+      },
+      "test_split": "test",
+      "process_docs": "    return dataset.map(lambda d: {\"row\": d[\"row\"], \"lang\": lang, \"q\": str(d[q]).strip(), \"ref\": str(d[a]).strip()},\n                       remove_columns=dataset.column_names)\n",
+      "doc_to_text": "{{q}}",
+      "doc_to_target": "{{ref}}",
+      "unsafe_code": false,
+      "process_results": "def process_docs_kk(dataset):\n    return _process(dataset, \"kk\")\n",
+      "description": "You are a careful medical assistant. Answer in English with general information. Encourage consulting a qualified clinician for personal diagnosis or treatment.",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": null,
+        "process_docs": "<function process_docs_en at 0x000002689087A340>",
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "{{q}}",
+        "doc_to_choice": null,
+        "doc_to_target": "{{ref}}",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": ""
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "rougeL",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "chrf",
+          "aggregation": "chrf",
+          "higher_is_better": true
+        },
+        {
+          "metric": "lang_ok",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "repeats",
+          "aggregation": "mean",
+          "higher_is_better": false
+        },
+        {
+          "metric": "advises_doctor",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "answer_words",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "generate_until",
+      "generation_kwargs": {
+        "until": [],
+        "max_gen_toks": 512,
+        "do_sample": false,
+        "repetition_penalty": 1.1
+      },
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+        "dtype": "bfloat16",
+        "enable_thinking": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\medquad\\medquad_en.yaml"
+      }
+    },
+    "medquad_kk": {
+      "task": "medquad_kk",
+      "dataset_path": "parquet",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/final/qa_en_ru_kk.parquet"
+        }
+      },
+      "test_split": "test",
+      "process_docs": "def process_docs_ru(dataset):\n    return _process(dataset, \"ru\")\n",
+      "doc_to_text": "{{q}}",
+      "doc_to_target": "{{ref}}",
+      "unsafe_code": false,
+      "process_results": "def process_docs_kk(dataset):\n    return _process(dataset, \"kk\")\n",
+      "description": "Сен мұқият медициналық көмекшісің. Қазақ тілінде жалпы ақпарат бер. Жеке белгілер немесе ем таңдау үшін дәрігерге жүгінуге кеңес бер.",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": null,
+        "process_docs": "<function process_docs_kk at 0x000002689087A0C0>",
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "{{q}}",
+        "doc_to_choice": null,
+        "doc_to_target": "{{ref}}",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": ""
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "rougeL",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "chrf",
+          "aggregation": "chrf",
+          "higher_is_better": true
+        },
+        {
+          "metric": "lang_ok",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "repeats",
+          "aggregation": "mean",
+          "higher_is_better": false
+        },
+        {
+          "metric": "advises_doctor",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "answer_words",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "generate_until",
+      "generation_kwargs": {
+        "until": [],
+        "max_gen_toks": 512,
+        "do_sample": false,
+        "repetition_penalty": 1.1
+      },
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+        "dtype": "bfloat16",
+        "enable_thinking": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\medquad\\medquad_kk.yaml"
+      }
+    },
+    "medquad_ru": {
+      "task": "medquad_ru",
+      "dataset_path": "parquet",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/final/qa_en_ru_kk.parquet"
+        }
+      },
+      "test_split": "test",
+      "process_docs": "def process_docs_en(dataset):\n    return _process(dataset, \"en\")\n",
+      "doc_to_text": "{{q}}",
+      "doc_to_target": "{{ref}}",
+      "unsafe_code": false,
+      "process_results": "def process_docs_kk(dataset):\n    return _process(dataset, \"kk\")\n",
+      "description": "Ты осторожный медицинский ассистент. Отвечай по-русски и давай общую информацию. При личных симптомах или выборе лечения советуй обратиться к врачу.",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": null,
+        "process_docs": "<function process_docs_ru at 0x000002689087A2A0>",
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "{{q}}",
+        "doc_to_choice": null,
+        "doc_to_target": "{{ref}}",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": ""
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "rougeL",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "chrf",
+          "aggregation": "chrf",
+          "higher_is_better": true
+        },
+        {
+          "metric": "lang_ok",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "repeats",
+          "aggregation": "mean",
+          "higher_is_better": false
+        },
+        {
+          "metric": "advises_doctor",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "answer_words",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "generate_until",
+      "generation_kwargs": {
+        "until": [],
+        "max_gen_toks": 512,
+        "do_sample": false,
+        "repetition_penalty": 1.1
+      },
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+        "dtype": "bfloat16",
+        "enable_thinking": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\medquad\\medquad_ru.yaml"
+      }
+    }
+  },
+  "versions": {
+    "medquad_en": 1.0,
+    "medquad_kk": 1.0,
+    "medquad_ru": 1.0
+  },
+  "n-shot": {
+    "medquad_en": 0,
+    "medquad_kk": 0,
+    "medquad_ru": 0
+  },
+  "higher_is_better": {
+    "medquad_en": {
+      "rougeL": true,
+      "chrf": true,
+      "lang_ok": true,
+      "repeats": false,
+      "advises_doctor": true,
+      "answer_words": true
+    },
+    "medquad_kk": {
+      "rougeL": true,
+      "chrf": true,
+      "lang_ok": true,
+      "repeats": false,
+      "advises_doctor": true,
+      "answer_words": true
+    },
+    "medquad_ru": {
+      "rougeL": true,
+      "chrf": true,
+      "lang_ok": true,
+      "repeats": false,
+      "advises_doctor": true,
+      "answer_words": true
+    }
+  },
+  "n-samples": {
+    "medquad_en": {
+      "original": 14368,
+      "effective": 100
+    },
+    "medquad_ru": {
+      "original": 14368,
+      "effective": 100
+    },
+    "medquad_kk": {
+      "original": 14368,
+      "effective": 100
+    }
+  },
+  "config": {
+    "model": "hf",
+    "model_args": {
+      "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+      "dtype": "bfloat16",
+      "enable_thinking": false
+    },
+    "model_num_parameters": 4022468096,
+    "model_dtype": "torch.bfloat16",
+    "model_revision": "main",
+    "model_sha": "bbe12ebf9362b3bcbf44e826e4c98910f2c02e72",
+    "batch_size": "8",
+    "batch_sizes": [],
+    "device": "cuda:0",
+    "use_cache": null,
+    "limit": 100.0,
+    "bootstrap_iters": 100000,
+    "gen_kwargs": {},
+    "random_seed": 42,
+    "numpy_seed": 42,
+    "torch_seed": 42,
+    "fewshot_seed": 42
+  },
+  "git_hash": "2863855",
+  "date": 1795855045.3397348,
+  "pretty_env_info": "PyTorch version: 2.11.0+cu128\nIs debug build: False\nCUDA used to build PyTorch: 12.8\nROCM used to build PyTorch: N/A\n\nOS: Microsoft Windows 11 Pro (10.0.26300 64-bit)\nGCC version: (tdm64-1) 4.9.2\r\nClang version: Could not collect\nCMake version: Could not collect\nLibc version: N/A\n\nPython version: 3.11.18 (main, Oct 26 2026, 14:08:50) [MSC v.1944 64 bit (AMD64)] (64-bit runtime)\nPython platform: Windows-10-10.0.26300-SP0\nIs CUDA available: True\nCUDA runtime version: Could not collect\nCUDA_MODULE_LOADING set to: \nGPU models and configuration: GPU 0: NVIDIA GeForce RTX 5060\nNvidia driver version: Could not collect\ncuDNN version: Could not collect\nIs XPU available: False\nHIP runtime version: N/A\nMIOpen runtime version: N/A\nIs XNNPACK available: True\nCaching allocator config: N/A\n\nCPU:\nName: Intel(R) Core(TM) Ultra 7 265\nManufacturer: GenuineIntel\nFamily: 774\nArchitecture: 9\nProcessorType: 3\nDeviceID: CPU0\nCurrentClockSpeed: 2400\nMaxClockSpeed: 2400\nL2CacheSize: 36864\nL2CacheSpeed: None\nRevision: None\n\nVersions of relevant libraries:\n[pip3] Could not collect\n[conda] Could not collect",
+  "transformers_version": "5.17.0",
+  "lm_eval_version": "0.4.13",
+  "upper_git_hash": null,
+  "tokenizer_pad_token": [
+    "<|vision_pad|>",
+    "151654"
+  ],
+  "tokenizer_eos_token": [
+    "<|im_end|>",
+    "151645"
+  ],
+  "tokenizer_bos_token": [
+    null,
+    "None"
+  ],
+  "eot_token_id": 151645,
+  "max_length": 40960,
+  "task_hashes": {
+    "medquad_en": "02d2fc7d5a5d9efa3a32d3e32d219f5219e8baa6124fd5b1b3213e23fd1d3e89",
+    "medquad_ru": "7b9fbd2e6fd53690db3e3d1d43583f55b9687195c90b4082d189acfbf8d9f2ae",
+    "medquad_kk": "9e195d1c1fa0009a67ed009d54e49663a91f9995cf7abf8388c2ecd92e63efd8"
+  },
+  "model_source": "hf",
+  "model_name": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+  "model_name_sanitized": "unsloth__Qwen3-4B-unsloth-bnb-4bit",
+  "system_instruction": null,
+  "system_instruction_sha": null,
+  "fewshot_as_multiturn": true,
+  "chat_template": "{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0].role == 'system' %}\n        {{- messages[0].content + '\\n\\n' }}\n    {%- endif %}\n    {{- \"# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>\" }}\n    {%- for tool in tools %}\n        {{- \"\\n\" }}\n        {{- tool | tojson }}\n    {%- endfor %}\n    {{- \"\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\\\"name\\\": <function-name>, \\\"arguments\\\": <args-json-object>}\\n</tool_call><|im_end|>\\n\" }}\n{%- else %}\n    {%- if messages[0].role == 'system' %}\n        {{- '<|im_start|>system\\n' + messages[0].content + '<|im_end|>\\n' }}\n    {%- endif %}\n{%- endif %}\n{%- set ns = namespace(multi_step_tool=true, last_query_index=messages|length - 1) %}\n{%- for forward_message in messages %}\n    {%- set index = (messages|length - 1) - loop.index0 %}\n    {%- set message = messages[index] %}\n    {%- set tool_start = '<tool_response>' %}\n    {%- set tool_start_length = tool_start|length %}\n    {%- set start_of_message = message.content[:tool_start_length] %}\n    {%- set tool_end = '</tool_response>' %}\n    {%- set tool_end_length = tool_end|length %}\n    {%- set start_pos = (message.content|length) - tool_end_length %}\n    {%- if start_pos < 0 %}\n        {%- set start_pos = 0 %}\n    {%- endif %}\n    {%- set end_of_message = message.content[start_pos:] %}\n    {%- if ns.multi_step_tool and message.role == \"user\" and not(start_of_message == tool_start and end_of_message == tool_end) %}\n        {%- set ns.multi_step_tool = false %}\n        {%- set ns.last_query_index = index %}\n    {%- endif %}\n{%- endfor %}\n{%- for message in messages %}\n    {%- if (message.role == \"user\") or (message.role == \"system\" and not loop.first) %}\n        {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}\n    {%- elif message.role == \"assistant\" %}\n        {%- set content = message.content %}\n        {%- set reasoning_content = '' %}\n        {%- if message.reasoning_content is defined and message.reasoning_content is not none %}\n            {%- set reasoning_content = message.reasoning_content %}\n        {%- else %}\n            {%- if '</think>' in message.content %}\n                {%- set content = (message.content.split('</think>')|last).lstrip('\\n') %}\n                {%- set reasoning_content = (message.content.split('</think>')|first).rstrip('\\n') %}\n                {%- set reasoning_content = (reasoning_content.split('<think>')|last).lstrip('\\n') %}\n            {%- endif %}\n        {%- endif %}\n        {%- if loop.index0 > ns.last_query_index %}\n            {%- if loop.last or (not loop.last and reasoning_content) %}\n                {{- '<|im_start|>' + message.role + '\\n<think>\\n' + reasoning_content.strip('\\n') + '\\n</think>\\n\\n' + content.lstrip('\\n') }}\n            {%- else %}\n                {{- '<|im_start|>' + message.role + '\\n' + content }}\n            {%- endif %}\n        {%- else %}\n            {{- '<|im_start|>' + message.role + '\\n' + content }}\n        {%- endif %}\n        {%- if message.tool_calls %}\n            {%- for tool_call in message.tool_calls %}\n                {%- if (loop.first and content) or (not loop.first) %}\n                    {{- '\\n' }}\n                {%- endif %}\n                {%- if tool_call.function %}\n                    {%- set tool_call = tool_call.function %}\n                {%- endif %}\n                {{- '<tool_call>\\n{\"name\": \"' }}\n                {{- tool_call.name }}\n                {{- '\", \"arguments\": ' }}\n                {%- if tool_call.arguments is string %}\n                    {{- tool_call.arguments }}\n                {%- else %}\n                    {{- tool_call.arguments | tojson }}\n                {%- endif %}\n                {{- '}\\n</tool_call>' }}\n            {%- endfor %}\n        {%- endif %}\n        {{- '<|im_end|>\\n' }}\n    {%- elif message.role == \"tool\" %}\n        {%- if loop.first or (messages[loop.index0 - 1].role != \"tool\") %}\n            {{- '<|im_start|>user' }}\n        {%- endif %}\n        {{- '\\n<tool_response>\\n' }}\n        {{- message.content }}\n        {{- '\\n</tool_response>' }}\n        {%- if loop.last or (messages[loop.index0 + 1].role != \"tool\") %}\n            {{- '<|im_end|>\\n' }}\n        {%- endif %}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|im_start|>assistant\\n' }}\n    {%- if enable_thinking is defined and enable_thinking is false %}\n        {{- '<think>\\n\\n</think>\\n\\n' }}\n    {%- endif %}\n{%- endif %}",
+  "chat_template_sha": "96fd16d36fb085260f9eb1e717b2c4e6e8b9e75a5e6504f66c8d6b128d82784d",
+  "total_evaluation_time_seconds": "1526.217872200068"
+}

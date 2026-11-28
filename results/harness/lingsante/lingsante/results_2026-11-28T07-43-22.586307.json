@@ -1,0 +1,399 @@
+{
+  "results": {
+    "medquad_heldout_en": {
+      "name": "medquad_heldout_en",
+      "alias": "medquad_heldout_en",
+      "sample_len": 50,
+      "rougeL,none": 0.16080047632737712,
+      "rougeL_stderr,none": 0.006463510039591536,
+      "chrf,none": 30.39387298322273,
+      "chrf_stderr,none": 2.075267393797817,
+      "lang_ok,none": 1.0,
+      "lang_ok_stderr,none": 0.0,
+      "repeats,none": 0.0034717132675661524,
+      "repeats_stderr,none": 0.0013619581847938997,
+      "advises_doctor,none": 0.04,
+      "advises_doctor_stderr,none": 0.027994168488950623,
+      "answer_words,none": 130.92,
+      "answer_words_stderr,none": 7.547176252596404
+    },
+    "medquad_heldout_ru": {
+      "name": "medquad_heldout_ru",
+      "alias": "medquad_heldout_ru",
+      "sample_len": 50,
+      "rougeL,none": 0.09666667129192735,
+      "rougeL_stderr,none": 0.004634046992187923,
+      "chrf,none": 29.566993533630338,
+      "chrf_stderr,none": 1.5289509200399027,
+      "lang_ok,none": 1.0,
+      "lang_ok_stderr,none": 0.0,
+      "repeats,none": 0.0014556793009262315,
+      "repeats_stderr,none": 0.000532715915393625,
+      "advises_doctor,none": 0.84,
+      "advises_doctor_stderr,none": 0.05237229365663815,
+      "answer_words,none": 136.14,
+      "answer_words_stderr,none": 4.382340256352647
+    },
+    "medquad_heldout_kk": {
+      "name": "medquad_heldout_kk",
+      "alias": "medquad_heldout_kk",
+      "sample_len": 50,
+      "rougeL,none": 0.07696325761275698,
+      "rougeL_stderr,none": 0.004782986541011004,
+      "chrf,none": 21.413302306600926,
+      "chrf_stderr,none": 1.4849892576723462,
+      "lang_ok,none": 1.0,
+      "lang_ok_stderr,none": 0.0,
+      "repeats,none": 0.05473037439491777,
+      "repeats_stderr,none": 0.020592084007488524,
+      "advises_doctor,none": 0.54,
+      "advises_doctor_stderr,none": 0.07119963311072637,
+      "answer_words,none": 89.24,
+      "answer_words_stderr,none": 3.183831602561509
+    }
+  },
+  "group_subtasks": {},
+  "configs": {
+    "medquad_heldout_en": {
+      "task": "medquad_heldout_en",
+      "dataset_path": "parquet",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/final/qa_en_ru_kk.parquet"
+        }
+      },
+      "test_split": "test",
+      "process_docs": "        return lambda dataset: _process(dataset, lang, heldout)\n",
+      "doc_to_text": "{{q}}",
+      "doc_to_target": "{{ref}}",
+      "unsafe_code": false,
+      "process_results": "def process_results(doc: dict, results: list[str]) -> dict:\n    \"\"\"Метрики одного ответа. Те же, что в medqa/evaluation.py (похожесть на эталон, не медицинская правильность).\"\"\"\n    answer = clean(results[0], doc[\"lang\"])\n    words = tokens(answer)\n    return {\n        \"rougeL\": rouge_l(tokens(doc[\"ref\"]), words),\n        \"chrf\": (doc[\"ref\"], answer),  # корпусный chrF (0–100) — агрегация chrf из lm-eval\n        \"lang_ok\": float(detect_language(answer) == doc[\"lang\"]),\n        \"repeats\": repeated_share(words),\n        \"advises_doctor\": float(advises_help(answer)),\n        \"answer_words\": float(len(words)),\n    }\n",
+      "description": "You are a careful medical assistant. Answer in English with general information. Encourage consulting a qualified clinician for personal diagnosis or treatment.",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": null,
+        "process_docs": "<function _make.<locals>.<lambda> at 0x0000029982019D00>",
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "{{q}}",
+        "doc_to_choice": null,
+        "doc_to_target": "{{ref}}",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": ""
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "rougeL",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "chrf",
+          "aggregation": "chrf",
+          "higher_is_better": true
+        },
+        {
+          "metric": "lang_ok",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "repeats",
+          "aggregation": "mean",
+          "higher_is_better": false
+        },
+        {
+          "metric": "advises_doctor",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "answer_words",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "generate_until",
+      "generation_kwargs": {
+        "until": [],
+        "max_gen_toks": 512,
+        "do_sample": false,
+        "repetition_penalty": 1.1
+      },
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "model": "lingsante",
+        "base_url": "http://127.0.0.1:8081/v1/chat/completions",
+        "num_concurrent": 1,
+        "max_retries": 3,
+        "timeout": 900,
+        "tokenized_requests": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\medquad\\medquad_heldout_en.yaml"
+      }
+    },
+    "medquad_heldout_kk": {
+      "task": "medquad_heldout_kk",
+      "dataset_path": "parquet",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/final/qa_en_ru_kk.parquet"
+        }
+      },
+      "test_split": "test",
+      "process_docs": "        return lambda dataset: _process(dataset, lang, heldout)\n",
+      "doc_to_text": "{{q}}",
+      "doc_to_target": "{{ref}}",
+      "unsafe_code": false,
+      "process_results": "def process_results(doc: dict, results: list[str]) -> dict:\n    \"\"\"Метрики одного ответа. Те же, что в medqa/evaluation.py (похожесть на эталон, не медицинская правильность).\"\"\"\n    answer = clean(results[0], doc[\"lang\"])\n    words = tokens(answer)\n    return {\n        \"rougeL\": rouge_l(tokens(doc[\"ref\"]), words),\n        \"chrf\": (doc[\"ref\"], answer),  # корпусный chrF (0–100) — агрегация chrf из lm-eval\n        \"lang_ok\": float(detect_language(answer) == doc[\"lang\"]),\n        \"repeats\": repeated_share(words),\n        \"advises_doctor\": float(advises_help(answer)),\n        \"answer_words\": float(len(words)),\n    }\n",
+      "description": "Сен мұқият медициналық көмекшісің. Қазақ тілінде жалпы ақпарат бер. Жеке белгілер немесе ем таңдау үшін дәрігерге жүгінуге кеңес бер.",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": null,
+        "process_docs": "<function _make.<locals>.<lambda> at 0x000002998201A480>",
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "{{q}}",
+        "doc_to_choice": null,
+        "doc_to_target": "{{ref}}",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": ""
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "rougeL",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "chrf",
+          "aggregation": "chrf",
+          "higher_is_better": true
+        },
+        {
+          "metric": "lang_ok",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "repeats",
+          "aggregation": "mean",
+          "higher_is_better": false
+        },
+        {
+          "metric": "advises_doctor",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "answer_words",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "generate_until",
+      "generation_kwargs": {
+        "until": [],
+        "max_gen_toks": 512,
+        "do_sample": false,
+        "repetition_penalty": 1.1
+      },
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "model": "lingsante",
+        "base_url": "http://127.0.0.1:8081/v1/chat/completions",
+        "num_concurrent": 1,
+        "max_retries": 3,
+        "timeout": 900,
+        "tokenized_requests": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\medquad\\medquad_heldout_kk.yaml"
+      }
+    },
+    "medquad_heldout_ru": {
+      "task": "medquad_heldout_ru",
+      "dataset_path": "parquet",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/final/qa_en_ru_kk.parquet"
+        }
+      },
+      "test_split": "test",
+      "process_docs": "        return lambda dataset: _process(dataset, lang, heldout)\n",
+      "doc_to_text": "{{q}}",
+      "doc_to_target": "{{ref}}",
+      "unsafe_code": false,
+      "process_results": "def process_results(doc: dict, results: list[str]) -> dict:\n    \"\"\"Метрики одного ответа. Те же, что в medqa/evaluation.py (похожесть на эталон, не медицинская правильность).\"\"\"\n    answer = clean(results[0], doc[\"lang\"])\n    words = tokens(answer)\n    return {\n        \"rougeL\": rouge_l(tokens(doc[\"ref\"]), words),\n        \"chrf\": (doc[\"ref\"], answer),  # корпусный chrF (0–100) — агрегация chrf из lm-eval\n        \"lang_ok\": float(detect_language(answer) == doc[\"lang\"]),\n        \"repeats\": repeated_share(words),\n        \"advises_doctor\": float(advises_help(answer)),\n        \"answer_words\": float(len(words)),\n    }\n",
+      "description": "Ты осторожный медицинский ассистент. Отвечай по-русски и давай общую информацию. При личных симптомах или выборе лечения советуй обратиться к врачу.",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": null,
+        "process_docs": "<function _make.<locals>.<lambda> at 0x000002998201A0C0>",
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "{{q}}",
+        "doc_to_choice": null,
+        "doc_to_target": "{{ref}}",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": ""
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "rougeL",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "chrf",
+          "aggregation": "chrf",
+          "higher_is_better": true
+        },
+        {
+          "metric": "lang_ok",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "repeats",
+          "aggregation": "mean",
+          "higher_is_better": false
+        },
+        {
+          "metric": "advises_doctor",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "answer_words",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "generate_until",
+      "generation_kwargs": {
+        "until": [],
+        "max_gen_toks": 512,
+        "do_sample": false,
+        "repetition_penalty": 1.1
+      },
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "model": "lingsante",
+        "base_url": "http://127.0.0.1:8081/v1/chat/completions",
+        "num_concurrent": 1,
+        "max_retries": 3,
+        "timeout": 900,
+        "tokenized_requests": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\medquad\\medquad_heldout_ru.yaml"
+      }
+    }
+  },
+  "versions": {
+    "medquad_heldout_en": 1.0,
+    "medquad_heldout_kk": 1.0,
+    "medquad_heldout_ru": 1.0
+  },
+  "n-shot": {
+    "medquad_heldout_en": 0,
+    "medquad_heldout_kk": 0,
+    "medquad_heldout_ru": 0
+  },
+  "higher_is_better": {
+    "medquad_heldout_en": {
+      "rougeL": true,
+      "chrf": true,
+      "lang_ok": true,
+      "repeats": false,
+      "advises_doctor": true,
+      "answer_words": true
+    },
+    "medquad_heldout_kk": {
+      "rougeL": true,
+      "chrf": true,
+      "lang_ok": true,
+      "repeats": false,
+      "advises_doctor": true,
+      "answer_words": true
+    },
+    "medquad_heldout_ru": {
+      "rougeL": true,
+      "chrf": true,
+      "lang_ok": true,
+      "repeats": false,
+      "advises_doctor": true,
+      "answer_words": true
+    }
+  },
+  "n-samples": {
+    "medquad_heldout_en": {
+      "original": 1344,
+      "effective": 50
+    },
+    "medquad_heldout_ru": {
+      "original": 1344,
+      "effective": 50
+    },
+    "medquad_heldout_kk": {
+      "original": 1344,
+      "effective": 50
+    }
+  },
+  "config": {
+    "model": "local-chat-completions",
+    "model_args": {
+      "model": "lingsante",
+      "base_url": "http://127.0.0.1:8081/v1/chat/completions",
+      "num_concurrent": 1,
+      "max_retries": 3,
+      "timeout": 900,
+      "tokenized_requests": false
+    },
+    "batch_size": 1,
+    "batch_sizes": [],
+    "device": "cuda:0",
+    "use_cache": null,
+    "limit": 50.0,
+    "bootstrap_iters": 100000,
+    "gen_kwargs": {},
+    "random_seed": 42,
+    "numpy_seed": 42,
+    "torch_seed": 42,
+    "fewshot_seed": 42
+  },
+  "git_hash": "2ffac11",
+  "date": 1795875062.544957,
+  "pretty_env_info": "PyTorch version: 2.11.0+cu128\nIs debug build: False\nCUDA used to build PyTorch: 12.8\nROCM used to build PyTorch: N/A\n\nOS: Microsoft Windows 11 Pro (10.0.26300 64-bit)\nGCC version: (tdm64-1) 4.9.2\r\nClang version: Could not collect\nCMake version: Could not collect\nLibc version: N/A\n\nPython version: 3.11.18 (main, Oct 26 2026, 14:08:50) [MSC v.1944 64 bit (AMD64)] (64-bit runtime)\nPython platform: Windows-10-10.0.26300-SP0\nIs CUDA available: True\nCUDA runtime version: Could not collect\nCUDA_MODULE_LOADING set to: \nGPU models and configuration: GPU 0: NVIDIA GeForce RTX 5060\nNvidia driver version: Could not collect\ncuDNN version: Could not collect\nIs XPU available: False\nHIP runtime version: N/A\nMIOpen runtime version: N/A\nIs XNNPACK available: True\nCaching allocator config: N/A\n\nCPU:\nName: Intel(R) Core(TM) Ultra 7 265\nManufacturer: GenuineIntel\nFamily: 774\nArchitecture: 9\nProcessorType: 3\nDeviceID: CPU0\nCurrentClockSpeed: 2400\nMaxClockSpeed: 2400\nL2CacheSize: 36864\nL2CacheSpeed: None\nRevision: None\n\nVersions of relevant libraries:\n[pip3] Could not collect\n[conda] Could not collect",
+  "transformers_version": "5.17.0",
+  "lm_eval_version": "0.4.13",
+  "upper_git_hash": null,
+  "task_hashes": {
+    "medquad_heldout_en": "21848ec1a7b7e9e194abb304fd9367bb78287ccbaf97434cdd147a4b2afd3807",
+    "medquad_heldout_ru": "d8dc49bf67b703917a4418eb251459305a93e4754348c9684bcd1c772dd37430",
+    "medquad_heldout_kk": "2b29f2e8121915a2537e0bf9189b8858fbef293147c5cc66a8b18145aad9ac49"
+  },
+  "model_source": "local-chat-completions",
+  "model_name": "lingsante",
+  "model_name_sanitized": "lingsante",
+  "system_instruction": null,
+  "system_instruction_sha": null,
+  "fewshot_as_multiturn": true,
+  "chat_template": "",
+  "chat_template_sha": null,
+  "total_evaluation_time_seconds": "1980.2347335999366"
+}
