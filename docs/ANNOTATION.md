@@ -42,6 +42,25 @@ By language:
 Correct + partially correct: base 8 / 30 (27 %), medbot_old 20 / 30 (67 %).
 With n = 30 per system these are indicative, not precise (95 % CI for a proportion of 0.33 at n = 30 is roughly ±0.17).
 
+## Do the automatic metrics detect hallucinations? No.
+
+Mean metric per manual label (same 60 answers; sentence chrF and bge-m3 cosine vs the reference):
+
+| label | chrF | semantic |
+|---|---|---|
+| correct | 44.2 | 0.854 |
+| **hallucination** | **36.4** | **0.821** |
+| partially correct | 34.5 | 0.819 |
+| off-topic / evasive | 24.4 | 0.684 |
+| degenerate | 18.4 | 0.669 |
+
+Similarity metrics separate broken answers (loops, off-topic) from real answers, but a hallucinated answer scores
+almost like a correct one. Extreme case: medbot_old on *"What are the symptoms of Hyperlipoproteinemia type 5?"*
+gets **chrF 81.2, semantic 0.965** because it copies the reference template word for word, yet the symptom list
+inside it is wrong (nephrolithiasis, cholesteroluria). Conversely, base on *"What causes Peripheral Arterial
+Disease?"* is correct but scores chrF 28.1 because it uses its own wording. Hence the manual rubric is needed next to
+chrF / ROUGE-L / BERTScore-style metrics.
+
 ## What the errors look like
 
 **Base — confident invention.** Wrong genes ("KAB1" for Kabuki syndrome, "RPS5" instead of PRPS1, G6PD instead of

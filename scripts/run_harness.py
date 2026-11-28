@@ -55,7 +55,8 @@ SUITES = {
     "heldout_raghidden": ["medquad_heldout_raghidden_en", "medquad_heldout_raghidden_ru",
                           "medquad_heldout_raghidden_kk"],
     "paraphrase": ["medquad_paraphrase_en", "medquad_paraphrase_ru", "medquad_paraphrase_kk"],
-    "bench": ["medqa_4options", "medmcqa", "pubmedqa", "mmlu_anatomy", "mmlu_clinical_knowledge",
+    # pubmedqa убран: в lm-eval 0.4.13 он грузится dataset-скриптом, который datasets 4.x больше не поддерживает
+    "bench": ["medqa_4options", "medmcqa", "mmlu_anatomy", "mmlu_clinical_knowledge",
               "mmlu_college_medicine", "mmlu_medical_genetics", "mmlu_professional_medicine"],
     "ru_kk": ["mmedbench_ru", "kazmmlu_medicine_ru", "kazmmlu_biology_ru", "kazmmlu_biology_kk"],
 }
@@ -63,18 +64,23 @@ GENERATIVE = ("medquad", "medquad_rag", "medquad_raghidden", "heldout", "heldout
 
 
 def gguf_server(name: str):
-    """llama-server для Saluki или LingSante — те же настройки, что в scripts/test_all_models.py."""
+    """llama-server для Saluki или LingSante, настроенный на максимум видеокарты.
+
+    Промпт ~150 токенов + ответ до 512, поэтому контекст 2048 вместо 8192: освободившаяся видеопамять уходит под
+    слои модели. --fit (по умолчанию включён) сам раскладывает слои / экспертов MoE между GPU и ОЗУ;
+    -fitt 256 — оставить 256 МБ свободными вместо 1024, -fitc 1024 — разрешить --fit контекст меньше 4096.
+    """
     sys.path.insert(0, str(ROOT))
     from medqa.saluki import SalukiServer, ServerConfig
 
+    fit = ["-fitt", "256", "-fitc", "1024"]
     if name == "lingsante":
         from medqa.config import LINGSANTE_MODEL
 
-        # эксперты MoE в ОЗУ, остальные слои на видеокарте
-        config = ServerConfig(model=LINGSANTE_MODEL, port=8081, ctx=8192, parallel=1, gpu_layers=99,
-                              extra=["--cpu-moe", "--no-op-offload"])
+        # без --cpu-moe: --fit кладёт на видеокарту столько экспертов MoE, сколько влезает, остальные — в ОЗУ
+        config = ServerConfig(model=LINGSANTE_MODEL, port=8081, ctx=2048, parallel=1, extra=fit + ["--no-op-offload"])
     else:
-        config = ServerConfig(ctx=8192, parallel=2)
+        config = ServerConfig(ctx=2048, parallel=2, extra=fit)
     return SalukiServer(config), config.parallel
 
 

@@ -263,6 +263,7 @@ def main() -> None:
         text += ["## Multiple-choice benchmarks — accuracy, % (± standard error)", "",
                  "Log-likelihood of each option letter, no chat template; shot = solved examples in the prompt.", "",
                  to_markdown(mc), ""]
+    text = [line.replace("medbot_full", DISPLAY["medbot_full"]) for line in text]
     (OUT / "SUMMARY.md").write_text("\n".join(text), encoding="utf-8")
     if not samples.empty:
         samples.drop(columns=["answer", "ref", "q"]).to_csv(OUT / "per_question_metrics.csv", index=False)

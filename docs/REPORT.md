@@ -87,4 +87,88 @@ and no hyperparameter was tuned on them, so they remain a valid test set for med
 
 ## 5. Evaluation
 
-_Filled from `results/harness/SUMMARY.md` when all runs finish._
+All automatic evaluation runs through **lm-evaluation-harness 0.4.13** (EleutherAI) with project tasks in
+`harness/tasks/` and the runner `scripts/run_harness.py`; the summary is `results/harness/SUMMARY.md`
+(built by `scripts/harness_report.py`), every answer is in `results/harness/<model>/*/samples_*.jsonl`.
+
+### 5.1 Protocol
+
+| | |
+|---|---|
+| Evaluation set (MedQuAD) | 150 held-out test rows × 3 languages = 450 questions (first 150 of the seed-42 shuffled test rows) |
+| Prompt | the same system prompt medbot was trained with, Qwen3 chat template, thinking disabled |
+| Decoding | greedy, max 512 new tokens, repetition penalty 1.1 (`harness/tasks/medquad/_medquad_base.yaml`) |
+| Baseline | the same Qwen3-4B 4-bit model without the adapter (`base`) |
+| Metrics | chrF (sacrebleu corpus chrF, char 6-grams, β = 2) — fairer than word overlap for Russian / Kazakh morphology; ROUGE-L F1 (word LCS, mean over questions); semantic similarity (cosine of bge-m3 embeddings); right language; repetition (share of repeated 4-grams); advises doctor (keyword check) |
+| Uncertainty | 95 % bootstrap CI of the per-question difference to base (2 000 resamples) |
+
+The similarity metrics compare to the dataset reference; they do **not** measure medical correctness — that is
+covered by manual annotation (§6).
+
+### 5.2 Held-out test: baseline vs fine-tuned (n = 150 per language)
+
+| lang | model | chrF | ROUGE-L | semantic | repetition | advises doctor | words |
+|---|---|---|---|---|---|---|---|
+| EN | base | 34.3 | 0.149 | 0.800 | 1 % | 17 % | 241 |
+| EN | medbot_old | **46.1** | **0.362** | **0.871** | 2 % | 8 % | 150 |
+| RU | base | 28.2 | 0.095 | 0.780 | 0 % | 49 % | 155 |
+| RU | medbot_old | **38.7** | **0.283** | **0.841** | 3 % | 29 % | 116 |
+| KK | base | 17.9 | 0.064 | 0.706 | 29 % | 19 % | 96 |
+| KK | medbot_old | **30.6** | **0.219** | **0.813** | 9 % | 27 % | 81 |
+
+Difference medbot_old − base on the same questions (mean, 95 % CI):
+
+| lang | Δ chrF | Δ ROUGE-L | Δ semantic |
+|---|---|---|---|
+| EN | +11.7 [+8.4, +15.0] | +0.214 [+0.174, +0.256] | +0.071 [+0.056, +0.086] |
+| RU | +10.1 [+6.9, +13.7] | +0.188 [+0.149, +0.230] | +0.061 [+0.044, +0.077] |
+| KK | +14.2 [+11.8, +16.8] | +0.155 [+0.126, +0.185] | +0.107 [+0.089, +0.124] |
+| all | +12.0 [+10.2, +13.9] | +0.186 [+0.163, +0.207] | +0.079 [+0.070, +0.089] |
+
+All intervals exclude zero. On the 90 test questions about diseases that never appeared in training,
+medbot_old still improves (sentence chrF 30.1 → 46.8, semantic 0.784 → 0.875), so the gain is not only memorised
+disease facts.
+
+### 5.3 General knowledge: multiple-choice benchmarks (never trained on), accuracy %
+
+| benchmark | n | base | medbot_old | medbot_new |
+|---|---|---|---|---|
+| MMedBench-RU (yes / no) | 256 | 77.3 ± 2.6 | 75.4 ± 2.7 | 74.2 ± 2.7 |
+| KazMMLU Medicine (RU) | 297 | 43.4 ± 2.9 | 40.7 ± 2.9 | 40.7 ± 2.9 |
+| KazMMLU Biology (RU) | 1 065 | 75.8 ± 1.3 | 73.0 ± 1.4 | 73.6 ± 1.4 |
+| KazMMLU Biology (KK) | 1 022 | 52.8 ± 1.6 | 48.8 ± 1.6 | 48.9 ± 1.6 |
+
+Zero-shot, log-likelihood of the option letter. Fine-tuning costs 2–4 points (about 1–2 standard errors): a mild
+loss of multiple-choice ability while learning the open-answer style. English benchmarks: _pending_.
+
+### 5.4 Final model (medbot_new) and robustness to rewording
+
+_Pending: medbot_new on the same 450 questions, hand-paraphrased questions (`data/paraphrased_questions.json`),
+decoding without repetition (`no_repeat_ngram_size=4`), RAG, Saluki 27B and LingSante 124B on the same test._
+
+## 6. Error analysis
+
+Details: [`docs/ERROR_ANALYSIS_EXAMPLES.md`](ERROR_ANALYSIS_EXAMPLES.md) (examples selected by rule) and
+[`docs/ANNOTATION.md`](ANNOTATION.md) (manual rubric).
+
+- medbot_old is closer in meaning to the reference than base on 78 % of test questions (EN 79 %, RU 72 %, KK 81 %).
+- Degenerate answers (repetition loop, cut at the limit): base 85 / 450, medbot_old 44 / 450 — mostly Kazakh
+  (79 → 27).
+- Manual annotation of 30 random test answers per system: base — 17 % correct, 10 % partially, **47 % hallucination**,
+  7 % off-topic, 20 % degenerate; medbot_old — 30 % correct, 37 % partially, **33 % hallucination**, 0 % degenerate.
+  Single LLM annotator, not a physician.
+- Typical failures: base invents genes and disease definitions; medbot_old copies MedQuAD templates (symptom tables
+  with "90 %" frequencies) and fills them with wrong items when it does not know the disease; both fail on misleading
+  names (mycosis fungoides is a lymphoma; Wagner syndrome is an eye disease).
+- Wording vs meaning: on the 24 questions of `scripts/test_all_models.py`, LingSante has the lowest chrF (21.8) but a
+  semantic similarity close to medbot (0.767 vs 0.796) — it answers in its own words, which overlap metrics punish
+  ([`docs/figures/phrasing_vs_meaning.png`](figures/phrasing_vs_meaning.png)).
+
+## 7. Limitations
+
+- References for Russian and Kazakh are machine translations.
+- Similarity metrics are not correctness; the manual annotation is small (60 answers) and done by an LLM, not a doctor.
+- medbot_new was trained on all rows, so its MedQuAD scores measure fit, not generalisation; generalisation of the
+  method is shown by medbot_old on held-out rows and by paraphrased questions.
+- After fine-tuning the model mentions a doctor less often in EN / RU (it imitates reference texts).
+- Not a medical device: answers must not be used for diagnosis or treatment.
