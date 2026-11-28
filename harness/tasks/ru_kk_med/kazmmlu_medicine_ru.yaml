@@ -1,0 +1,9 @@
+include: _mc_base.yaml
+task: kazmmlu_medicine_ru
+tag: [ru_kk_med]
+dataset_kwargs:
+  data_files:
+    test: data/benchmarks/kazmmlu_medicine_ru/test.jsonl
+    dev: data/benchmarks/kazmmlu_medicine_ru/dev.jsonl
+doc_to_text: !function utils.doc_to_text_ru
+description: "Ниже вопрос с вариантами ответа по медицине.\n\n"

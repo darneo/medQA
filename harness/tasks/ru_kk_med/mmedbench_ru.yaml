@@ -1,0 +1,9 @@
+include: _mc_base.yaml
+task: mmedbench_ru
+tag: [ru_kk_med]
+dataset_kwargs:
+  data_files:
+    test: data/benchmarks/mmedbench_ru/test.jsonl
+    dev: data/benchmarks/mmedbench_ru/dev.jsonl
+doc_to_text: !function utils.doc_to_text_ru
+description: "Ниже вопрос по медицине. Ответь да или нет, выбрав букву.\n\n"

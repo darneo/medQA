@@ -1,0 +1,9 @@
+include: _mc_base.yaml
+task: kazmmlu_biology_kk
+tag: [ru_kk_med]
+dataset_kwargs:
+  data_files:
+    test: data/benchmarks/kazmmlu_biology_kk/test.jsonl
+    dev: data/benchmarks/kazmmlu_biology_kk/dev.jsonl
+doc_to_text: !function utils.doc_to_text_kk
+description: "Төменде биология бойынша жауап нұсқалары бар сұрақ берілген.\n\n"

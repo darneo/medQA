@@ -33,3 +33,6 @@ results/hopfield/eval_dataset.jsonl
 results/hopfield/hopfield_vs_reference.csv
 # веса адаптера medbot_train_full (66 МБ) — хранятся на Hugging Face, как и основной адаптер
 models/medbot_train_full/lora_adapter/adapter_model.safetensors
+
+# медицинские бенчмарки ru / kk (CC BY-NC) — скачиваются: python scripts/get_benchmarks.py
+data/benchmarks/

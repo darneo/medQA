@@ -1,0 +1,6 @@
+include: _medquad_base.yaml
+task: medquad_rag_kk
+tag: [medquad_rag]
+process_docs: !function utils.process_docs_rag_kk
+# system — поле документа: подсказка medbot + справка RAG (3 похожие пары из датасета)
+description: system
