@@ -1,0 +1,6 @@
+include: _medquad_base.yaml
+task: medquad_dev_kk
+tag: [medquad_dev]
+# dev: строки 150–249 отложенной выборки (не пересекаются с тестом) — для подбора настроек генерации
+process_docs: !function utils.process_docs_dev_kk
+description: "Сен мұқият медициналық көмекшісің. Қазақ тілінде жалпы ақпарат бер. Жеке белгілер немесе ем таңдау үшін дәрігерге жүгінуге кеңес бер."

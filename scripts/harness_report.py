@@ -89,8 +89,8 @@ def per_sample(runs: dict, semantic: bool) -> pd.DataFrame:
     utils = _load_utils()
     rows = []
     for (model, task, shot), r in runs.items():
-        if not task.startswith("medquad") or not r["samples"]:
-            continue
+        if not task.startswith("medquad") or not r["samples"] or "_dev_" in task:
+            continue  # dev-прогоны (подбор настроек) — в scripts/decoding_sweep.py
         variant, lang = task.rsplit("_", 1)
         samples = [json.loads(line) for line in r["samples"].open(encoding="utf-8")]
         answers = [utils.clean(s["resps"][0][0], s["doc"]["lang"]) for s in samples]
@@ -107,7 +107,7 @@ def per_sample(runs: dict, semantic: bool) -> pd.DataFrame:
 def generative_table(runs: dict, samples: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for (model, task, shot), r in runs.items():
-        if not task.startswith("medquad"):
+        if not task.startswith("medquad") or "_dev_" in task:
             continue
         variant, lang = task.rsplit("_", 1)
         split = "test" if ("_heldout" in variant or "paraphrase" in variant) else "all"

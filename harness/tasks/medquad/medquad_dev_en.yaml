@@ -1,0 +1,6 @@
+include: _medquad_base.yaml
+task: medquad_dev_en
+tag: [medquad_dev]
+# dev: строки 150–249 отложенной выборки (не пересекаются с тестом) — для подбора настроек генерации
+process_docs: !function utils.process_docs_dev_en
+description: "You are a careful medical assistant. Answer in English with general information. Encourage consulting a qualified clinician for personal diagnosis or treatment."

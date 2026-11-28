@@ -1,0 +1,65 @@
+{
+  "tau": 0.945969980955124,
+  "summary": [
+    {
+      "scenario": "new question (not in base)",
+      "lang": "en",
+      "n": 150,
+      "routed": 0.03333333333333333,
+      "chrf_medbot": 48.12732046341492,
+      "chrf_hybrid": 48.10008360205978,
+      "sem_medbot": 0.8744788531462352,
+      "sem_hybrid": 0.8748125116030375
+    },
+    {
+      "scenario": "new question (not in base)",
+      "lang": "ru",
+      "n": 150,
+      "routed": 0.02666666666666667,
+      "chrf_medbot": 42.096511211443925,
+      "chrf_hybrid": 42.25217138184294,
+      "sem_medbot": 0.8448397131760915,
+      "sem_hybrid": 0.8442875826358796
+    },
+    {
+      "scenario": "new question (not in base)",
+      "lang": "kk",
+      "n": 150,
+      "routed": 0.06,
+      "chrf_medbot": 35.90197906597157,
+      "chrf_hybrid": 35.96149379821211,
+      "sem_medbot": 0.8240475384394328,
+      "sem_hybrid": 0.8218093399206797
+    },
+    {
+      "scenario": "paraphrased known question",
+      "lang": "en",
+      "n": 20,
+      "routed": 0.05,
+      "chrf_medbot": 38.051054402963786,
+      "chrf_hybrid": 41.56857773323472,
+      "sem_medbot": 0.8181421250104904,
+      "sem_hybrid": 0.8327730685472489
+    },
+    {
+      "scenario": "paraphrased known question",
+      "lang": "kk",
+      "n": 20,
+      "routed": 0.0,
+      "chrf_medbot": 32.472349156337515,
+      "chrf_hybrid": 32.472349156337515,
+      "sem_medbot": 0.7947061717510223,
+      "sem_hybrid": 0.7947061717510223
+    },
+    {
+      "scenario": "paraphrased known question",
+      "lang": "ru",
+      "n": 20,
+      "routed": 0.05,
+      "chrf_medbot": 38.098984807836594,
+      "chrf_hybrid": 39.324774168726336,
+      "sem_medbot": 0.8119718313217164,
+      "sem_hybrid": 0.8133586436510086
+    }
+  ]
+}

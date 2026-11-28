@@ -153,3 +153,19 @@ def _paraphrase(dataset, lang: str):
 
 for _lang in ("en", "ru", "kk"):
     globals()[f"process_docs_paraphrase_{_lang}"] = (lambda l: lambda dataset: _paraphrase(dataset, l))(_lang)
+
+
+# ---------------------------------------------------------------- dev-выборка для подбора настроек генерации
+
+DEV_START, DEV_SIZE = 150, 100  # строки 150–249 отложенной выборки: не пересекаются с тестовыми первыми 150
+
+
+def _dev(dataset, lang: str):
+    """Отложенные строки, которых нет среди тестовых (первые 150 в том же порядке). Настройки генерации подбираются
+    здесь на medbot_old (он этих строк не видел), а на тесте только проверяется выбранный вариант."""
+    dataset = _process(dataset, lang, heldout=True)
+    return dataset.select(range(DEV_START, DEV_START + DEV_SIZE))
+
+
+for _lang in ("en", "ru", "kk"):
+    globals()[f"process_docs_dev_{_lang}"] = (lambda l: lambda dataset: _dev(dataset, l))(_lang)

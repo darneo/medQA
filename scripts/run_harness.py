@@ -54,13 +54,14 @@ SUITES = {
     "heldout_rag": ["medquad_heldout_rag_en", "medquad_heldout_rag_ru", "medquad_heldout_rag_kk"],
     "heldout_raghidden": ["medquad_heldout_raghidden_en", "medquad_heldout_raghidden_ru",
                           "medquad_heldout_raghidden_kk"],
+    "dev": ["medquad_dev_en", "medquad_dev_ru", "medquad_dev_kk"],
     "paraphrase": ["medquad_paraphrase_en", "medquad_paraphrase_ru", "medquad_paraphrase_kk"],
     # pubmedqa убран: в lm-eval 0.4.13 он грузится dataset-скриптом, который datasets 4.x больше не поддерживает
     "bench": ["medqa_4options", "medmcqa", "mmlu_anatomy", "mmlu_clinical_knowledge",
               "mmlu_college_medicine", "mmlu_medical_genetics", "mmlu_professional_medicine"],
     "ru_kk": ["mmedbench_ru", "kazmmlu_medicine_ru", "kazmmlu_biology_ru", "kazmmlu_biology_kk"],
 }
-GENERATIVE = ("medquad", "medquad_rag", "medquad_raghidden", "heldout", "heldout_rag", "heldout_raghidden", "paraphrase")
+GENERATIVE = ("medquad", "medquad_rag", "medquad_raghidden", "heldout", "heldout_rag", "heldout_raghidden", "paraphrase", "dev")
 
 
 def gguf_server(name: str):
