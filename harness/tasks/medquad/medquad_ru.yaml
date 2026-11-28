@@ -1,0 +1,5 @@
+include: _medquad_base.yaml
+task: medquad_ru
+tag: [medquad]
+process_docs: !function utils.process_docs_ru
+description: "Ты осторожный медицинский ассистент. Отвечай по-русски и давай общую информацию. При личных симптомах или выборе лечения советуй обратиться к врачу."

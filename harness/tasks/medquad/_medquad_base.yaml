@@ -1,0 +1,39 @@
+# Общие настройки задач medquad_en / medquad_ru / medquad_kk (подключаются через include).
+# Датасет — data/final/qa_en_ru_kk.parquet; путь относительный, lm_eval запускается из корня проекта
+# (scripts/run_harness.py делает это сам).
+dataset_path: parquet
+dataset_kwargs:
+  data_files:
+    test: data/final/qa_en_ru_kk.parquet
+output_type: generate_until
+test_split: test
+doc_to_text: "{{q}}"
+doc_to_target: "{{ref}}"
+target_delimiter: ""
+process_results: !function utils.process_results
+generation_kwargs:
+  until: []
+  max_gen_toks: 512
+  do_sample: false
+  repetition_penalty: 1.1   # как в medqa.medbot.generate
+metric_list:
+  - metric: rougeL
+    aggregation: mean
+    higher_is_better: true
+  - metric: chrf
+    aggregation: chrf
+    higher_is_better: true
+  - metric: lang_ok
+    aggregation: mean
+    higher_is_better: true
+  - metric: repeats
+    aggregation: mean
+    higher_is_better: false
+  - metric: advises_doctor
+    aggregation: mean
+    higher_is_better: true
+  - metric: answer_words
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

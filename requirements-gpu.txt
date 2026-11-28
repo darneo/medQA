@@ -9,3 +9,4 @@ datasets
 accelerate
 sentencepiece
 safetensors
+lm-eval[hf]   # lm-evaluation-harness: scripts/run_harness.py

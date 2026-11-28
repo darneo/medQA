@@ -1,0 +1,6 @@
+include: _medquad_base.yaml
+task: medquad_en
+tag: [medquad]
+process_docs: !function utils.process_docs_en
+# description становится системным сообщением чат-шаблона — та же подсказка, на которой обучен medbot (medqa/prompts.py)
+description: "You are a careful medical assistant. Answer in English with general information. Encourage consulting a qualified clinician for personal diagnosis or treatment."

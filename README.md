@@ -53,7 +53,8 @@ notebooks/
   compare_base_vs_medbot.ipynb   medbot против обычной Qwen3-4B
   compare_saluki_rag.ipynb       Saluki без RAG против Saluki с RAG
 docs/REPORT_medbot.txt    отчёт об обучении (7 ноября 2026)
-scripts/                  установка на GPU, обучение по шардам, слияние адаптера, упаковка
+harness/tasks/medquad/   задачи MedQuAD en / ru / kk для lm-evaluation-harness
+scripts/                  установка на GPU, обучение по шардам, слияние адаптера, упаковка, run_harness.py
 tools/llama_cpp/          сюда кладётся сборка llama.cpp (llama-server.exe)
 ```
 
@@ -211,6 +212,28 @@ python -m medqa saluki chat --lang ru --rag hopfield    # Хопфилд как 
 24 вопроса — мало для выводов: разница между medbot старым и новым в пределах шума (большинство этих строк
 старый адаптер тоже видел). RAG нашёл эталон для всех 24 вопросов, но Saluki пересказывает его кратко,
 поэтому chrF ниже; зато на казахском Saluki + RAG лучше медботов.
+
+## lm-evaluation-harness
+
+Оценка через стандартный фреймворк [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness)
+(EleutherAI): те же метрики считаются одинаково для всех моделей, а результаты можно сравнивать с цифрами из статей.
+Установка: `uv pip install --python .venv\Scripts\python.exe "lm-eval[hf]"` (уже есть в `requirements-gpu.txt`).
+
+```powershell
+.venv\Scripts\python.exe scripts\run_harness.py --models base medbot_old medbot_full --limit 100
+.venv\Scripts\python.exe scripts\run_harness.py --models base medbot_full --suite bench --limit 200
+```
+
+- **`--suite medquad`** — свои задачи `harness/tasks/medquad/` (`medquad_en`, `medquad_ru`, `medquad_kk`):
+  вопрос датасета → ответ модели с той же системной подсказкой, на которой обучен medbot, без `<think>`;
+  метрики ROUGE-L, chrF, язык верный, повторы, совет к врачу (код из `medqa/evaluation.py`). Строки перемешаны
+  с seed 42, поэтому `--limit N` даёт всем моделям одни и те же N строк. Все они были в обучении medbot.
+- **`--suite bench`** — готовые бенчмарки на английском с выбором ответа (точность `acc`): MedQA-USMLE (4 варианта),
+  MedMCQA, PubMedQA, медицинские разделы MMLU. Модели их не видели — это проверка того, не испортило ли
+  дообучение общие медицинские знания по сравнению с базовой Qwen3-4B.
+
+Результаты (сводка `results_*.json` и все ответы `samples_*.jsonl`) — в `results/harness/<модель>/`.
+Задачи можно запускать и напрямую: `python -m lm_eval run --include_path harness/tasks --tasks medquad ...`.
 
 ### Перенос на другой компьютер
 

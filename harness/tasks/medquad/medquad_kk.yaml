@@ -1,0 +1,5 @@
+include: _medquad_base.yaml
+task: medquad_kk
+tag: [medquad]
+process_docs: !function utils.process_docs_kk
+description: "Сен мұқият медициналық көмекшісің. Қазақ тілінде жалпы ақпарат бер. Жеке белгілер немесе ем таңдау үшін дәрігерге жүгінуге кеңес бер."
