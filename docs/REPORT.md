@@ -137,14 +137,80 @@ disease facts.
 | KazMMLU Medicine (RU) | 297 | 43.4 ± 2.9 | 40.7 ± 2.9 | 40.7 ± 2.9 |
 | KazMMLU Biology (RU) | 1 065 | 75.8 ± 1.3 | 73.0 ± 1.4 | 73.6 ± 1.4 |
 | KazMMLU Biology (KK) | 1 022 | 52.8 ± 1.6 | 48.8 ± 1.6 | 48.9 ± 1.6 |
+| MedQA-USMLE 4 options (EN) | 200 | 57.5 ± 3.5 | 57.5 ± 3.5 | 57.0 ± 3.5 |
+| MedMCQA (EN) | 200 | 54.0 ± 3.5 | 48.5 ± 3.5 | 47.0 ± 3.5 |
+| MMLU anatomy | 135 | 63.0 ± 4.2 | 65.2 ± 4.1 | 63.7 ± 4.2 |
+| MMLU clinical knowledge | 200 | 73.5 ± 3.1 | 71.5 ± 3.2 | 70.5 ± 3.2 |
+| MMLU college medicine | 173 | 71.1 ± 3.5 | 69.9 ± 3.5 | 70.5 ± 3.5 |
+| MMLU medical genetics | 100 | 73.0 ± 4.5 | 73.0 ± 4.5 | 75.0 ± 4.4 |
+| MMLU professional medicine | 200 | 71.0 ± 3.2 | 66.0 ± 3.4 | 66.0 ± 3.4 |
 
-Zero-shot, log-likelihood of the option letter. Fine-tuning costs 2–4 points (about 1–2 standard errors): a mild
-loss of multiple-choice ability while learning the open-answer style. English benchmarks: _pending_.
+Zero-shot, log-likelihood of the option letter, no chat template; English tasks limited to the first 200 items.
+PubMedQA was planned but could not be loaded (its loader is a dataset script, no longer supported by `datasets` 4.x)
+— **not measured**. Fine-tuning leaves multiple-choice knowledge roughly unchanged: same on MedQA, +1…+2 on anatomy
+and genetics, −2…−7 on MedMCQA, professional medicine and the RU / KK sets; most differences are within 1–2 standard
+errors. A mild loss of multiple-choice ability is the price of learning the open-answer style.
 
-### 5.4 Final model (medbot_new) and robustness to rewording
+### 5.4 Final model (medbot_new)
 
-_Pending: medbot_new on the same 450 questions, hand-paraphrased questions (`data/paraphrased_questions.json`),
-decoding without repetition (`no_repeat_ngram_size=4`), RAG, Saluki 27B and LingSante 124B on the same test._
+medbot_new is the model trained on **all** rows (teacher-approved). On the same 450 questions (which it saw in
+training) it scores only slightly above medbot_old (which did not):
+
+| lang | base | medbot_old | medbot_new |
+|---|---|---|---|
+| EN chrF / semantic | 34.3 / 0.800 | 46.1 / 0.871 | 46.9 / 0.874 |
+| RU chrF / semantic | 28.2 / 0.780 | 38.7 / 0.841 | 39.8 / 0.845 |
+| KK chrF / semantic | 17.9 / 0.706 | 30.6 / 0.813 | 30.8 / 0.824 |
+
+The small gap (+0.2…+1.1 chrF) after seeing the answers shows that one epoch of LoRA learned the style, language
+and format, not the reference texts — no sign of memorisation.
+
+### 5.5 Robustness to rewording (paraphrased questions)
+
+20 test questions × 3 languages rewritten by hand (`data/paraphrased_questions.json`; e.g. *"What is the best way to
+treat Guillain-Barre syndrome?"*, *"I noticed blood in my urine. What does that mean?"*). Same reference answer.
+
+| model | chrF original → paraphrase | semantic original → paraphrase |
+|---|---|---|
+| base | 31.1 → 30.3 | 0.778 → 0.763 |
+| medbot_old | 38.9 → 36.3 | 0.839 → 0.811 |
+| medbot_new | 40.2 → 36.2 | 0.847 → 0.808 |
+
+The fine-tuned models lose ~3–4 chrF when the wording changes (part of their advantage is matching MedQuAD phrasing),
+but stay clearly above base on paraphrased questions. n = 60 per model, indicative only.
+
+### 5.6 Attempts to improve the scores
+
+**Blocking repetition** (`no_repeat_ngram_size=4`, same 50 test questions per language):
+
+| model | lang | chrF default → no-repeat | ROUGE-L | repetition |
+|---|---|---|---|---|
+| base | KK | 22.7 → 24.1 | 0.066 → 0.046 | 29 % → 0 % |
+| medbot_new | EN | 48.9 → 47.8 | 0.379 → 0.351 | 2 % → 0 % |
+| medbot_new | RU | 42.5 → 38.9 | 0.299 → 0.236 | 4 % → 0 % |
+| medbot_new | KK | 36.1 → 31.6 | 0.222 → 0.120 | 9 % → 0 % |
+
+Loops disappear, but quality drops: legitimate repeats (disease names, fixed phrases, Kazakh word forms) are blocked
+too. Default decoding is kept.
+
+**RAG** (3 most similar QA pairs in the system prompt, the question's own answer removed; 50 questions per language):
+
+| model | lang | chrF no RAG → RAG | ROUGE-L |
+|---|---|---|---|
+| base | EN | 36.3 → 37.3 | 0.152 → 0.189 |
+| base | RU | 32.3 → 32.7 | 0.100 → 0.128 |
+| base | KK | 22.7 → 27.3 | 0.066 → 0.098 |
+| medbot_new | EN | 48.9 → 43.0 | 0.379 → 0.312 |
+| medbot_new | RU | 42.5 → 38.2 | 0.299 → 0.249 |
+| medbot_new | KK | 36.1 → 34.0 | 0.222 → 0.210 |
+
+Retrieval helps the base model (most in Kazakh) but hurts medbot, which was never trained with retrieved context and
+gets distracted by neighbouring answers. Fine-tuning alone (36–49 chrF) beats base + RAG (27–37). Training medbot
+with RAG-style prompts is a next step.
+
+### 5.7 Larger ready-made models
+
+_Saluki 27B and LingSante 124B-MoE (GGUF via llama.cpp) on the same test questions: running._
 
 ## 6. Error analysis
 
