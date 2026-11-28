@@ -1,0 +1,419 @@
+{
+  "results": {
+    "medquad_dev_en": {
+      "name": "medquad_dev_en",
+      "alias": "medquad_dev_en",
+      "sample_len": 50,
+      "rougeL,none": 0.38469394656918177,
+      "rougeL_stderr,none": 0.03635102618795842,
+      "chrf,none": 41.277060696437566,
+      "chrf_stderr,none": 4.954618062283675,
+      "lang_ok,none": 1.0,
+      "lang_ok_stderr,none": 0.0,
+      "repeats,none": 0.011173994048000109,
+      "repeats_stderr,none": 0.004207650960696703,
+      "advises_doctor,none": 0.12,
+      "advises_doctor_stderr,none": 0.04642307659791979,
+      "answer_words,none": 128.66,
+      "answer_words_stderr,none": 13.725757404476104
+    },
+    "medquad_dev_ru": {
+      "name": "medquad_dev_ru",
+      "alias": "medquad_dev_ru",
+      "sample_len": 50,
+      "rougeL,none": 0.24613961777452198,
+      "rougeL_stderr,none": 0.03213897130951314,
+      "chrf,none": 31.309202742462634,
+      "chrf_stderr,none": 3.275701576203703,
+      "lang_ok,none": 1.0,
+      "lang_ok_stderr,none": 0.0,
+      "repeats,none": 0.0024311628239588566,
+      "repeats_stderr,none": 0.0012472195102414551,
+      "advises_doctor,none": 0.34,
+      "advises_doctor_stderr,none": 0.06767268161329723,
+      "answer_words,none": 105.92,
+      "answer_words_stderr,none": 8.779374716240516
+    },
+    "medquad_dev_kk": {
+      "name": "medquad_dev_kk",
+      "alias": "medquad_dev_kk",
+      "sample_len": 50,
+      "rougeL,none": 0.15332931136533987,
+      "rougeL_stderr,none": 0.019924222523180858,
+      "chrf,none": 23.557714656440943,
+      "chrf_stderr,none": 2.9207928021959986,
+      "lang_ok,none": 1.0,
+      "lang_ok_stderr,none": 0.0,
+      "repeats,none": 0.0012658227848101266,
+      "repeats_stderr,none": 0.0012658227848101275,
+      "advises_doctor,none": 0.14,
+      "advises_doctor_stderr,none": 0.04956957592256421,
+      "answer_words,none": 71.74,
+      "answer_words_stderr,none": 4.424496742972179
+    }
+  },
+  "group_subtasks": {},
+  "configs": {
+    "medquad_dev_en": {
+      "task": "medquad_dev_en",
+      "dataset_path": "parquet",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/final/qa_en_ru_kk.parquet"
+        }
+      },
+      "test_split": "test",
+      "process_docs": "    globals()[f\"process_docs_dev_{_lang}\"] = (lambda l: lambda dataset: _dev(dataset, l))(_lang)\n",
+      "doc_to_text": "{{q}}",
+      "doc_to_target": "{{ref}}",
+      "unsafe_code": false,
+      "process_results": "def process_results(doc: dict, results: list[str]) -> dict:\n    \"\"\"Метрики одного ответа. Те же, что в medqa/evaluation.py (похожесть на эталон, не медицинская правильность).\"\"\"\n    answer = clean(results[0], doc[\"lang\"])\n    words = tokens(answer)\n    return {\n        \"rougeL\": rouge_l(tokens(doc[\"ref\"]), words),\n        \"chrf\": (doc[\"ref\"], answer),  # корпусный chrF (0–100) — агрегация chrf из lm-eval\n        \"lang_ok\": float(detect_language(answer) == doc[\"lang\"]),\n        \"repeats\": repeated_share(words),\n        \"advises_doctor\": float(advises_help(answer)),\n        \"answer_words\": float(len(words)),\n    }\n",
+      "description": "You are a careful medical assistant. Answer in English with general information. Encourage consulting a qualified clinician for personal diagnosis or treatment.",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": null,
+        "process_docs": "<function <lambda>.<locals>.<lambda> at 0x000001D689DD1E40>",
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "{{q}}",
+        "doc_to_choice": null,
+        "doc_to_target": "{{ref}}",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": ""
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "rougeL",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "chrf",
+          "aggregation": "chrf",
+          "higher_is_better": true
+        },
+        {
+          "metric": "lang_ok",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "repeats",
+          "aggregation": "mean",
+          "higher_is_better": false
+        },
+        {
+          "metric": "advises_doctor",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "answer_words",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "generate_until",
+      "generation_kwargs": {
+        "until": [],
+        "max_gen_toks": 512,
+        "do_sample": false,
+        "repetition_penalty": 1.1,
+        "no_repeat_ngram_size": 8
+      },
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+        "peft": "models/medbot_qwen3_4b/lora_adapter",
+        "dtype": "bfloat16",
+        "tokenizer": "models/medbot_qwen3_4b/lora_adapter",
+        "enable_thinking": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\medquad\\medquad_dev_en.yaml"
+      }
+    },
+    "medquad_dev_kk": {
+      "task": "medquad_dev_kk",
+      "dataset_path": "parquet",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/final/qa_en_ru_kk.parquet"
+        }
+      },
+      "test_split": "test",
+      "process_docs": "    globals()[f\"process_docs_dev_{_lang}\"] = (lambda l: lambda dataset: _dev(dataset, l))(_lang)\n",
+      "doc_to_text": "{{q}}",
+      "doc_to_target": "{{ref}}",
+      "unsafe_code": false,
+      "process_results": "def process_results(doc: dict, results: list[str]) -> dict:\n    \"\"\"Метрики одного ответа. Те же, что в medqa/evaluation.py (похожесть на эталон, не медицинская правильность).\"\"\"\n    answer = clean(results[0], doc[\"lang\"])\n    words = tokens(answer)\n    return {\n        \"rougeL\": rouge_l(tokens(doc[\"ref\"]), words),\n        \"chrf\": (doc[\"ref\"], answer),  # корпусный chrF (0–100) — агрегация chrf из lm-eval\n        \"lang_ok\": float(detect_language(answer) == doc[\"lang\"]),\n        \"repeats\": repeated_share(words),\n        \"advises_doctor\": float(advises_help(answer)),\n        \"answer_words\": float(len(words)),\n    }\n",
+      "description": "Сен мұқият медициналық көмекшісің. Қазақ тілінде жалпы ақпарат бер. Жеке белгілер немесе ем таңдау үшін дәрігерге жүгінуге кеңес бер.",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": null,
+        "process_docs": "<function <lambda>.<locals>.<lambda> at 0x000001D689DD1D00>",
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "{{q}}",
+        "doc_to_choice": null,
+        "doc_to_target": "{{ref}}",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": ""
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "rougeL",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "chrf",
+          "aggregation": "chrf",
+          "higher_is_better": true
+        },
+        {
+          "metric": "lang_ok",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "repeats",
+          "aggregation": "mean",
+          "higher_is_better": false
+        },
+        {
+          "metric": "advises_doctor",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "answer_words",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "generate_until",
+      "generation_kwargs": {
+        "until": [],
+        "max_gen_toks": 512,
+        "do_sample": false,
+        "repetition_penalty": 1.1,
+        "no_repeat_ngram_size": 8
+      },
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+        "peft": "models/medbot_qwen3_4b/lora_adapter",
+        "dtype": "bfloat16",
+        "tokenizer": "models/medbot_qwen3_4b/lora_adapter",
+        "enable_thinking": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\medquad\\medquad_dev_kk.yaml"
+      }
+    },
+    "medquad_dev_ru": {
+      "task": "medquad_dev_ru",
+      "dataset_path": "parquet",
+      "dataset_kwargs": {
+        "data_files": {
+          "test": "data/final/qa_en_ru_kk.parquet"
+        }
+      },
+      "test_split": "test",
+      "process_docs": "    globals()[f\"process_docs_dev_{_lang}\"] = (lambda l: lambda dataset: _dev(dataset, l))(_lang)\n",
+      "doc_to_text": "{{q}}",
+      "doc_to_target": "{{ref}}",
+      "unsafe_code": false,
+      "process_results": "def process_results(doc: dict, results: list[str]) -> dict:\n    \"\"\"Метрики одного ответа. Те же, что в medqa/evaluation.py (похожесть на эталон, не медицинская правильность).\"\"\"\n    answer = clean(results[0], doc[\"lang\"])\n    words = tokens(answer)\n    return {\n        \"rougeL\": rouge_l(tokens(doc[\"ref\"]), words),\n        \"chrf\": (doc[\"ref\"], answer),  # корпусный chrF (0–100) — агрегация chrf из lm-eval\n        \"lang_ok\": float(detect_language(answer) == doc[\"lang\"]),\n        \"repeats\": repeated_share(words),\n        \"advises_doctor\": float(advises_help(answer)),\n        \"answer_words\": float(len(words)),\n    }\n",
+      "description": "Ты осторожный медицинский ассистент. Отвечай по-русски и давай общую информацию. При личных симптомах или выборе лечения советуй обратиться к врачу.",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "default",
+        "split": null,
+        "process_docs": "<function <lambda>.<locals>.<lambda> at 0x000001D689DD1DA0>",
+        "fewshot_indices": null,
+        "samples": null,
+        "doc_to_text": "{{q}}",
+        "doc_to_choice": null,
+        "doc_to_target": "{{ref}}",
+        "gen_prefix": null,
+        "fewshot_delimiter": "\n\n",
+        "target_delimiter": ""
+      },
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "rougeL",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "chrf",
+          "aggregation": "chrf",
+          "higher_is_better": true
+        },
+        {
+          "metric": "lang_ok",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "repeats",
+          "aggregation": "mean",
+          "higher_is_better": false
+        },
+        {
+          "metric": "advises_doctor",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "answer_words",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "generate_until",
+      "generation_kwargs": {
+        "until": [],
+        "max_gen_toks": 512,
+        "do_sample": false,
+        "repetition_penalty": 1.1,
+        "no_repeat_ngram_size": 8
+      },
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+        "peft": "models/medbot_qwen3_4b/lora_adapter",
+        "dtype": "bfloat16",
+        "tokenizer": "models/medbot_qwen3_4b/lora_adapter",
+        "enable_thinking": false,
+        "config_source": "C:\\projects\\medQA\\harness\\tasks\\medquad\\medquad_dev_ru.yaml"
+      }
+    }
+  },
+  "versions": {
+    "medquad_dev_en": 1.0,
+    "medquad_dev_kk": 1.0,
+    "medquad_dev_ru": 1.0
+  },
+  "n-shot": {
+    "medquad_dev_en": 0,
+    "medquad_dev_kk": 0,
+    "medquad_dev_ru": 0
+  },
+  "higher_is_better": {
+    "medquad_dev_en": {
+      "rougeL": true,
+      "chrf": true,
+      "lang_ok": true,
+      "repeats": false,
+      "advises_doctor": true,
+      "answer_words": true
+    },
+    "medquad_dev_kk": {
+      "rougeL": true,
+      "chrf": true,
+      "lang_ok": true,
+      "repeats": false,
+      "advises_doctor": true,
+      "answer_words": true
+    },
+    "medquad_dev_ru": {
+      "rougeL": true,
+      "chrf": true,
+      "lang_ok": true,
+      "repeats": false,
+      "advises_doctor": true,
+      "answer_words": true
+    }
+  },
+  "n-samples": {
+    "medquad_dev_en": {
+      "original": 100,
+      "effective": 50
+    },
+    "medquad_dev_ru": {
+      "original": 100,
+      "effective": 50
+    },
+    "medquad_dev_kk": {
+      "original": 100,
+      "effective": 50
+    }
+  },
+  "config": {
+    "model": "hf",
+    "model_args": {
+      "pretrained": "unsloth/Qwen3-4B-unsloth-bnb-4bit",
+      "peft": "models/medbot_qwen3_4b/lora_adapter",
+      "dtype": "bfloat16",
+      "tokenizer": "models/medbot_qwen3_4b/lora_adapter",
+      "enable_thinking": false
+    },
+    "model_num_parameters": 4054814720,
+    "model_dtype": "torch.bfloat16",
+    "model_revision": "main",
+    "model_sha": "bbe12ebf9362b3bcbf44e826e4c98910f2c02e72",
+    "peft_sha": "",
+    "batch_size": "16",
+    "batch_sizes": [],
+    "device": "cuda:0",
+    "use_cache": null,
+    "limit": 50.0,
+    "bootstrap_iters": 100000,
+    "gen_kwargs": {
+      "no_repeat_ngram_size": 8
+    },
+    "random_seed": 42,
+    "numpy_seed": 42,
+    "torch_seed": 42,
+    "fewshot_seed": 42
+  },
+  "git_hash": "b6431b8",
+  "date": 1795882731.7318256,
+  "pretty_env_info": "PyTorch version: 2.11.0+cu128\nIs debug build: False\nCUDA used to build PyTorch: 12.8\nROCM used to build PyTorch: N/A\n\nOS: Microsoft Windows 11 Pro (10.0.26300 64-bit)\nGCC version: (tdm64-1) 4.9.2\r\nClang version: Could not collect\nCMake version: Could not collect\nLibc version: N/A\n\nPython version: 3.11.18 (main, Oct 26 2026, 14:08:50) [MSC v.1944 64 bit (AMD64)] (64-bit runtime)\nPython platform: Windows-10-10.0.26300-SP0\nIs CUDA available: True\nCUDA runtime version: Could not collect\nCUDA_MODULE_LOADING set to: \nGPU models and configuration: GPU 0: NVIDIA GeForce RTX 5060\nNvidia driver version: Could not collect\ncuDNN version: Could not collect\nIs XPU available: False\nHIP runtime version: N/A\nMIOpen runtime version: N/A\nIs XNNPACK available: True\nCaching allocator config: N/A\n\nCPU:\nName: Intel(R) Core(TM) Ultra 7 265\nManufacturer: GenuineIntel\nFamily: 774\nArchitecture: 9\nProcessorType: 3\nDeviceID: CPU0\nCurrentClockSpeed: 2400\nMaxClockSpeed: 2400\nL2CacheSize: 36864\nL2CacheSpeed: None\nRevision: None\n\nVersions of relevant libraries:\n[pip3] Could not collect\n[conda] Could not collect",
+  "transformers_version": "5.17.0",
+  "lm_eval_version": "0.4.13",
+  "upper_git_hash": null,
+  "tokenizer_pad_token": [
+    "<|vision_pad|>",
+    "151654"
+  ],
+  "tokenizer_eos_token": [
+    "<|im_end|>",
+    "151645"
+  ],
+  "tokenizer_bos_token": [
+    null,
+    "None"
+  ],
+  "eot_token_id": 151645,
+  "max_length": 40960,
+  "task_hashes": {
+    "medquad_dev_en": "767a45e91e2ce59343a258e2931f0c310c5918ec78862d7332195a030a3ee4d2",
+    "medquad_dev_ru": "1ded1ac797e4333d3ed05d56ebcc3c40dfcc467cf23a97a1a0b857a2a93b4766",
+    "medquad_dev_kk": "4cad9991daf85a69c58db2beff8bf092ffd8fc154b64fc36ec70dc2f6a135153"
+  },
+  "model_source": "hf",
+  "model_name": "models/medbot_qwen3_4b/lora_adapter",
+  "model_name_sanitized": "models__medbot_qwen3_4b__lora_adapter",
+  "system_instruction": null,
+  "system_instruction_sha": null,
+  "fewshot_as_multiturn": true,
+  "chat_template": "{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0].role == 'system' %}\n        {{- messages[0].content + '\\n\\n' }}\n    {%- endif %}\n    {{- \"# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>\" }}\n    {%- for tool in tools %}\n        {{- \"\\n\" }}\n        {{- tool | tojson }}\n    {%- endfor %}\n    {{- \"\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\\\"name\\\": <function-name>, \\\"arguments\\\": <args-json-object>}\\n</tool_call><|im_end|>\\n\" }}\n{%- else %}\n    {%- if messages[0].role == 'system' %}\n        {{- '<|im_start|>system\\n' + messages[0].content + '<|im_end|>\\n' }}\n    {%- endif %}\n{%- endif %}\n{%- set ns = namespace(multi_step_tool=true, last_query_index=messages|length - 1) %}\n{%- for forward_message in messages %}\n    {%- set index = (messages|length - 1) - loop.index0 %}\n    {%- set message = messages[index] %}\n    {%- set tool_start = '<tool_response>' %}\n    {%- set tool_start_length = tool_start|length %}\n    {%- set start_of_message = message.content[:tool_start_length] %}\n    {%- set tool_end = '</tool_response>' %}\n    {%- set tool_end_length = tool_end|length %}\n    {%- set start_pos = (message.content|length) - tool_end_length %}\n    {%- if start_pos < 0 %}\n        {%- set start_pos = 0 %}\n    {%- endif %}\n    {%- set end_of_message = message.content[start_pos:] %}\n    {%- if ns.multi_step_tool and message.role == \"user\" and not(start_of_message == tool_start and end_of_message == tool_end) %}\n        {%- set ns.multi_step_tool = false %}\n        {%- set ns.last_query_index = index %}\n    {%- endif %}\n{%- endfor %}\n{%- for message in messages %}\n    {%- if (message.role == \"user\") or (message.role == \"system\" and not loop.first) %}\n        {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}\n    {%- elif message.role == \"assistant\" %}\n        {%- set content = message.content %}\n        {%- set reasoning_content = '' %}\n        {%- if message.reasoning_content is defined and message.reasoning_content is not none %}\n            {%- set reasoning_content = message.reasoning_content %}\n        {%- else %}\n            {%- if '</think>' in message.content %}\n                {%- set content = (message.content.split('</think>')|last).lstrip('\\n') %}\n                {%- set reasoning_content = (message.content.split('</think>')|first).rstrip('\\n') %}\n                {%- set reasoning_content = (reasoning_content.split('<think>')|last).lstrip('\\n') %}\n            {%- endif %}\n        {%- endif %}\n        {%- if loop.index0 > ns.last_query_index %}\n            {%- if loop.last or (not loop.last and reasoning_content) %}\n                {{- '<|im_start|>' + message.role + '\\n<think>\\n' + reasoning_content.strip('\\n') + '\\n</think>\\n\\n' + content.lstrip('\\n') }}\n            {%- else %}\n                {{- '<|im_start|>' + message.role + '\\n' + content }}\n            {%- endif %}\n        {%- else %}\n            {{- '<|im_start|>' + message.role + '\\n' + content }}\n        {%- endif %}\n        {%- if message.tool_calls %}\n            {%- for tool_call in message.tool_calls %}\n                {%- if (loop.first and content) or (not loop.first) %}\n                    {{- '\\n' }}\n                {%- endif %}\n                {%- if tool_call.function %}\n                    {%- set tool_call = tool_call.function %}\n                {%- endif %}\n                {{- '<tool_call>\\n{\"name\": \"' }}\n                {{- tool_call.name }}\n                {{- '\", \"arguments\": ' }}\n                {%- if tool_call.arguments is string %}\n                    {{- tool_call.arguments }}\n                {%- else %}\n                    {{- tool_call.arguments | tojson }}\n                {%- endif %}\n                {{- '}\\n</tool_call>' }}\n            {%- endfor %}\n        {%- endif %}\n        {{- '<|im_end|>\\n' }}\n    {%- elif message.role == \"tool\" %}\n        {%- if loop.first or (messages[loop.index0 - 1].role != \"tool\") %}\n            {{- '<|im_start|>user' }}\n        {%- endif %}\n        {{- '\\n<tool_response>\\n' }}\n        {{- message.content }}\n        {{- '\\n</tool_response>' }}\n        {%- if loop.last or (messages[loop.index0 + 1].role != \"tool\") %}\n            {{- '<|im_end|>\\n' }}\n        {%- endif %}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|im_start|>assistant\\n' }}\n    {%- if enable_thinking is defined and enable_thinking is false %}\n        {{- '<think>\\n\\n</think>\\n\\n' }}\n    {%- endif %}\n{%- endif %}",
+  "chat_template_sha": "96fd16d36fb085260f9eb1e717b2c4e6e8b9e75a5e6504f66c8d6b128d82784d",
+  "total_evaluation_time_seconds": "656.3067085000221"
+}
